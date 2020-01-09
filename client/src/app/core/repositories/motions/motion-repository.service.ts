@@ -715,11 +715,23 @@ export class MotionRepositoryService extends BaseIsAgendaItemAndListOfSpeakersCo
      * @param {number} lineLength
      */
     public getParagraphsToChoose(motion: ViewMotion, lineLength: number): ParagraphToChoose[] {
-        return this.getTextParagraphs(motion, true, lineLength).map((paragraph: string, index: number) => {
-            const affected: LineNumberRange = this.lineNumbering.getLineNumberRange(paragraph);
+        // use paragraphs of the target motion if it exists.
+        const targetMotion = motion.hasParent ? motion.parent : motion;
+        return this.getTextParagraphs(targetMotion, true, lineLength).map((paragraph: string, index: number) => {
+            let localParagraph = '';
+
+            if (motion.hasParent && motion.amendment_paragraphs && motion.amendment_paragraphs.length) {
+                // if the motion we are working on is an amendment, try to prefer the amended paragraphs
+                // rather than the original paragraphs, if it exists
+                localParagraph = motion.amendment_paragraphs[index] ? motion.amendment_paragraphs[index] : paragraph;
+            } else {
+                localParagraph = paragraph;
+            }
+
+            const affected: LineNumberRange = this.lineNumbering.getLineNumberRange(localParagraph);
             return {
                 paragraphNo: index,
-                html: this.lineNumbering.stripLineNumbers(paragraph),
+                html: this.lineNumbering.stripLineNumbers(localParagraph),
                 lineFrom: affected.from,
                 lineTo: affected.to
             };

@@ -1,4 +1,4 @@
-import { Component, ViewEncapsulation } from '@angular/core';
+import { Component, OnInit, ViewEncapsulation } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Title } from '@angular/platform-browser';
@@ -22,7 +22,7 @@ import { ViewMotion } from 'app/site/motions/models/view-motion';
     styleUrls: ['./amendment-create-wizard.component.scss'],
     encapsulation: ViewEncapsulation.None
 })
-export class AmendmentCreateWizardComponent extends BaseViewComponent {
+export class AmendmentCreateWizardComponent extends BaseViewComponent implements OnInit {
     /**
      * The motion to be amended
      */
@@ -79,7 +79,9 @@ export class AmendmentCreateWizardComponent extends BaseViewComponent {
     ) {
         super(titleService, translate, matSnackBar);
         this.createForm();
+    }
 
+    public ngOnInit(): void {
         this.configService.get<number>('motions_line_length').subscribe(lineLength => {
             this.lineLength = lineLength;
             this.getMotionByUrl();
@@ -101,7 +103,7 @@ export class AmendmentCreateWizardComponent extends BaseViewComponent {
         // load existing motion
         this.route.params.subscribe(params => {
             this.repo.getViewModelObservable(params.id).subscribe(newViewMotion => {
-                this.motion = newViewMotion;
+                newViewMotion.hasParent ? (this.motion = newViewMotion.parent) : (this.motion = newViewMotion);
                 this.paragraphs = this.repo.getParagraphsToChoose(newViewMotion, this.lineLength);
             });
         });
