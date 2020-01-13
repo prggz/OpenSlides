@@ -18,7 +18,9 @@
 
         <!-- State -->
         <div *ngIf="data.data.state">
-            <h3>{{ data.data.state }}</h3>
+            <h3>Verfahren:</h3>
+            {{ data.data.state }}
+            <span *ngIf="data.data.state_extension"> {{ data.data.state_extension }}</span>
         </div>
     </div>
 

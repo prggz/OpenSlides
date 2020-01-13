@@ -79,4 +79,5 @@ export interface MotionSlideData {
     line_numbering_mode: LineNumberingMode;
     change_recommendation_mode: ChangeRecoMode;
     state?: string;
+    state_extension?: string;
 }
