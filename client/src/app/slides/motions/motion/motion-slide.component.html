@@ -15,6 +15,11 @@
             <h3>{{ data.data.recommender }}</h3>
             {{ getRecommendationLabel() }}
         </div>
+
+        <!-- State -->
+        <div *ngIf="data.data.state">
+            <h3>{{ data.data.state }}</h3>
+        </div>
     </div>
 
     <div [ngStyle]="{ width: data.data.show_meta_box ? 'calc(100% - 250px)' : '100%' }">
