@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatSnackBar } from '@angular/material';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 
@@ -58,7 +58,7 @@ export class LoginMaskComponent extends BaseViewComponent implements OnInit, OnD
     /**
      * The message, that should appear, when the user logs in.
      */
-    private loginMessage = 'Loading data. Please wait...';
+    private loginMessage = 'Loading data. Please wait ...';
 
     /**
      * Constructor for the login component

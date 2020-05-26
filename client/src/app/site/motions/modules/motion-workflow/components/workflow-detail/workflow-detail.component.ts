@@ -13,7 +13,7 @@ import { map } from 'rxjs/operators';
 import { StateRepositoryService } from 'app/core/repositories/motions/state-repository.service';
 import { WorkflowRepositoryService } from 'app/core/repositories/motions/workflow-repository.service';
 import { PromptService } from 'app/core/ui-services/prompt.service';
-import { MergeAmendment, State } from 'app/shared/models/motions/state';
+import { MergeAmendment, Restriction, State } from 'app/shared/models/motions/state';
 import { infoDialogSettings } from 'app/shared/utils/dialog-settings';
 import { BaseViewComponent } from 'app/site/base/base-view';
 import { ViewState } from 'app/site/motions/models/view-state';
@@ -27,6 +27,7 @@ interface DialogData {
     description: string;
     value: string;
     deletable?: boolean;
+    allowEmpty?: boolean;
 }
 
 /**
@@ -58,8 +59,8 @@ interface AmendmentIntoFinal {
 /**
  * Defines the structure of restrictions
  */
-interface Restriction {
-    key: string;
+interface RestrictionShape {
+    key: Restriction;
     label: string;
 }
 
@@ -125,11 +126,11 @@ export class WorkflowDetailComponent extends BaseViewComponent implements OnInit
      * Determines possible restrictions
      */
     public restrictions = [
-        { key: 'motions.can_manage', label: 'Can manage motions' },
-        { key: 'motions.can_see_internal', label: 'Can see motions in internal state' },
-        { key: 'motions.can_manage_metadata', label: 'Can manage motion metadata' },
-        { key: 'is_submitter', label: 'Submitters' }
-    ] as Restriction[];
+        { key: Restriction.motionsCanManage, label: 'Can manage motions' },
+        { key: Restriction.motionsCanSeeInternal, label: 'Can see motions in internal state' },
+        { key: Restriction.motionsCanManageMetadata, label: 'Can manage motion metadata' },
+        { key: Restriction.motionsIsSubmitter, label: 'Submitters' }
+    ] as RestrictionShape[];
 
     /**
      * Determines possible "Merge amendments into final"
@@ -146,7 +147,7 @@ export class WorkflowDetailComponent extends BaseViewComponent implements OnInit
      * @param title Set the page title
      * @param translate Handle translations
      * @param matSnackBar Showing error
-     * @param promtService Promts
+     * @param promptService Promts
      * @param dialog Opening dialogs
      * @param workflowRepo The repository for workflows
      * @param route Read out URL paramters
@@ -155,7 +156,7 @@ export class WorkflowDetailComponent extends BaseViewComponent implements OnInit
         title: Title,
         protected translate: TranslateService, // protected required for ng-translate-extract
         matSnackBar: MatSnackBar,
-        private promtService: PromptService,
+        private promptService: PromptService,
         private dialog: MatDialog,
         private workflowRepo: WorkflowRepositoryService,
         private stateRepo: StateRepositoryService,
@@ -208,7 +209,7 @@ export class WorkflowDetailComponent extends BaseViewComponent implements OnInit
                 } else if (result.action === 'delete') {
                     const content = this.translate.instant('Delete') + ` ${state.name}?`;
 
-                    this.promtService.open('Are you sure', content).then(promptResult => {
+                    this.promptService.open('Are you sure', content).then(promptResult => {
                         if (promptResult) {
                             this.stateRepo.delete(state).then(() => {}, this.raiseError);
                         }
@@ -256,7 +257,10 @@ export class WorkflowDetailComponent extends BaseViewComponent implements OnInit
      * @param state The selected workflow state
      */
     public onClickInputPerm(perm: StatePerm, state: ViewState): void {
-        this.openEditDialog(state[perm.selector], 'Edit', perm.name).subscribe(result => {
+        this.openEditDialog(state[perm.selector], 'Edit', perm.name, false, true).subscribe(result => {
+            if (result.value === '') {
+                result.value = null;
+            }
             if (result && result.action === 'update') {
                 this.stateRepo.update({ [perm.selector]: result.value }, state).then(() => {}, this.raiseError);
             }
@@ -309,7 +313,7 @@ export class WorkflowDetailComponent extends BaseViewComponent implements OnInit
      * @param restrictions The new restrictions
      * @param state the state to change
      */
-    public onSetRestriction(restriction: string, state: ViewState): void {
+    public onSetRestriction(restriction: Restriction, state: ViewState): void {
         const restrictions = state.restriction.map(r => r);
         const restrictionIndex = restrictions.findIndex(r => r === restriction);
 
@@ -347,18 +351,21 @@ export class WorkflowDetailComponent extends BaseViewComponent implements OnInit
      * @param title The title of the dialog
      * @param description The description of the dialog
      * @param deletable determine if a delete button should be offered
+     * @param allowEmpty to allow empty values
      */
     private openEditDialog(
         value: string,
         title?: string,
         description?: string,
-        deletable?: boolean
+        deletable?: boolean,
+        allowEmpty?: boolean
     ): Observable<DialogResult> {
         this.dialogData = {
             title: title || '',
             description: description || '',
             value: value,
-            deletable: deletable
+            deletable: deletable,
+            allowEmpty: allowEmpty
         };
 
         const dialogRef = this.dialog.open(this.workflowDialog, infoDialogSettings);

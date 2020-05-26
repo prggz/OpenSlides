@@ -1,6 +1,6 @@
 import { HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { MatSnackBar } from '@angular/material';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { TranslateService } from '@ngx-translate/core';
 import { saveAs } from 'file-saver';
@@ -47,8 +47,8 @@ export class PdfError extends Error {
  * Provides the general document structure for PDF documents, such as page margins, header, footer and styles.
  * Also provides general purpose open and download functions.
  *
- * Use a local pdf service (i.e. MotionPdfService) to get the document definition for the content and use this service to
- * open or download the pdf document
+ * Use a local pdf service (i.e. MotionPdfService) to get the document definition for the content and
+ * use this service to open or download the pdf document
  *
  * @example
  * ```ts
@@ -256,14 +256,11 @@ export class PdfDocumentService {
         if (logoHeaderLeftUrl && logoHeaderRightUrl) {
             text = '';
         } else {
-            const general_event_name = this.configService.instant<string>('general_event_name');
-            const general_event_description = this.configService.instant<string>('general_event_description');
-            const line1 = [
-                this.translate.instant(general_event_name),
-                this.translate.instant(general_event_description)
-            ]
-                .filter(Boolean)
-                .join(' – ');
+            const general_event_name = this.translate.instant(this.configService.instant<string>('general_event_name'));
+            const general_event_description = this.translate.instant(
+                this.configService.instant<string>('general_event_description')
+            );
+            const line1 = [general_event_name, general_event_description].filter(Boolean).join(' - ');
             const line2 = [
                 this.configService.instant('general_event_location'),
                 this.configService.instant('general_event_date')
@@ -709,6 +706,13 @@ export class PdfDocumentService {
         return {
             text: '',
             pageBreak: 'after'
+        };
+    }
+
+    public getSpacer(): Object {
+        return {
+            text: '',
+            margin: [0, 10]
         };
     }
 

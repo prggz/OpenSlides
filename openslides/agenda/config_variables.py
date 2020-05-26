@@ -188,3 +188,13 @@ def get_config_variables():
         group="Agenda",
         subgroup="List of speakers",
     )
+
+    yield ConfigVariable(
+        name="agenda_show_first_contribution",
+        default_value=False,
+        input_type="boolean",
+        label="Show hint »first speech« in the list of speakers management view",
+        weight=234,
+        group="Agenda",
+        subgroup="List of speakers",
+    )

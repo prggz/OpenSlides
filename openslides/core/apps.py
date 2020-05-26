@@ -144,6 +144,10 @@ class CoreAppConfig(AppConfig):
             "PRIORITIZED_GROUP_IDS",
             "PING_INTERVAL",
             "PING_TIMEOUT",
+            "ENABLE_ELECTRONIC_VOTING",
+            "JITSI_DOMAIN",
+            "JITSI_ROOM_NAME",
+            "JITSI_ROOM_PASSWORD",
         ]
         client_settings_dict = {}
         for key in client_settings_keys:

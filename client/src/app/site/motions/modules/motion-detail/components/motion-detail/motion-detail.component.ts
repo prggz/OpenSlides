@@ -17,7 +17,7 @@ import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 
 import { TranslateService } from '@ngx-translate/core';
-import { BehaviorSubject, Subscription } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription } from 'rxjs';
 
 import { NotifyService } from 'app/core/core-services/notify.service';
 import { OperatorService } from 'app/core/core-services/operator.service';
@@ -47,6 +47,7 @@ import { ViewCreateMotion } from 'app/site/motions/models/view-create-motion';
 import { ViewMotion } from 'app/site/motions/models/view-motion';
 import { ViewMotionBlock } from 'app/site/motions/models/view-motion-block';
 import { ViewMotionChangeRecommendation } from 'app/site/motions/models/view-motion-change-recommendation';
+import { ViewMotionPoll } from 'app/site/motions/models/view-motion-poll';
 import { ViewStatuteParagraph } from 'app/site/motions/models/view-statute-paragraph';
 import { ViewWorkflow } from 'app/site/motions/models/view-workflow';
 import { MotionEditNotification } from 'app/site/motions/motion-edit-notification';
@@ -57,9 +58,13 @@ import {
     PERSONAL_NOTE_ID,
     verboseChangeRecoMode
 } from 'app/site/motions/motions.constants';
+import { AmendmentFilterListService } from 'app/site/motions/services/amendment-filter-list.service';
+import { AmendmentSortListService } from 'app/site/motions/services/amendment-sort-list.service';
 import { LocalPermissionsService } from 'app/site/motions/services/local-permissions.service';
 import { MotionFilterListService } from 'app/site/motions/services/motion-filter-list.service';
 import { MotionPdfExportService } from 'app/site/motions/services/motion-pdf-export.service';
+import { MotionPollDialogService } from 'app/site/motions/services/motion-poll-dialog.service';
+import { MotionPollService } from 'app/site/motions/services/motion-poll.service';
 import { MotionSortListService } from 'app/site/motions/services/motion-sort-list.service';
 import { ViewTag } from 'app/site/tags/models/view-tag';
 import { ViewUser } from 'app/site/users/models/view-user';
@@ -210,9 +215,20 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
     public changeRecommendations: ViewMotionChangeRecommendation[];
 
     /**
-     * All amendments to this motions
+     * All amendments to this motion
      */
     public amendments: ViewMotion[];
+
+    /**
+     * The change recommendations to amendments to this motion
+     */
+    public amendmentChangeRecos: { [amendmentId: string]: ViewMotionChangeRecommendation[] } = {};
+
+    /**
+     * The observables for the `amendmentChangeRecos` field above.
+     * Necessary to track which amendments' change recommendations we have already subscribed to.
+     */
+    public amendmentChangeRecoSubscriptions: { [amendmentId: string]: Subscription } = {};
 
     /**
      * All change recommendations AND amendments, sorted by line number.
@@ -277,6 +293,11 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
     private sortedMotions: ViewMotion[];
 
     /**
+     * The observable for the list of motions. Set in OnInit
+     */
+    private sortedMotionsObservable: Observable<ViewMotion[]>;
+
+    /**
      * Determine if the name of supporters are visible
      */
     public showSupporters = false;
@@ -300,6 +321,16 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
      * If this is a paragraph-based amendment, this indicates if the non-affected paragraphs should be shown as well
      */
     public showAmendmentContext = false;
+
+    /**
+     * Sets the current amendment text mode from the settings
+     */
+    private amendmentTextMode: string;
+
+    /**
+     * Show all amendments in the text, not only the ones with the apropriate state
+     */
+    public showAllAmendments = false;
 
     /**
      * For using the enum constants from the template
@@ -401,25 +432,25 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
      * @param repo Motion Repository
      * @param changeRecoRepo Change Recommendation Repository
      * @param statuteRepo: Statute Paragraph Repository
-     * @param mediafileRepo Mediafile Repository
-     * @param DS The DataStoreService
      * @param configService The configuration provider
      * @param promptService ensure safe deletion
      * @param pdfExport export the motion to pdf
      * @param personalNoteService: personal comments and favorite marker
      * @param linenumberingService The line numbering service
      * @param categoryRepo Repository for categories
-     * @param viewModelStore accessing view models
-     * @param categoryRepo access the category repository
      * @param userRepo Repository for users
      * @param notifyService: NotifyService work with notification
      * @param tagRepo
-     * @param mediaFilerepo
      * @param workflowRepo
      * @param blockRepo
      * @param itemRepo
      * @param motionSortService
-     * @param motionFilterListService
+     * @param amendmentSortService
+     * @param motionFilterService
+     * @param amendmentFilterService
+     * @param cd ChangeDetectorRef
+     * @param pollDialog
+     * @param motionPollService
      */
     public constructor(
         title: Title,
@@ -449,8 +480,12 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
         private blockRepo: MotionBlockRepositoryService,
         private itemRepo: ItemRepositoryService,
         private motionSortService: MotionSortListService,
+        private amendmentSortService: AmendmentSortListService,
         private motionFilterService: MotionFilterListService,
-        private cd: ChangeDetectorRef
+        private amendmentFilterService: AmendmentFilterListService,
+        private cd: ChangeDetectorRef,
+        private pollDialog: MotionPollDialogService,
+        private motionPollService: MotionPollService
     ) {
         super(title, translate, matSnackBar);
     }
@@ -497,12 +532,17 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
         this.configService
             .get<LineNumberingMode>('motions_default_line_numbering')
             .subscribe(mode => (this.lnMode = mode));
-        this.configService
-            .get<ChangeRecoMode>('motions_recommendation_text_mode')
-            .subscribe(mode => (this.crMode = mode));
+        this.configService.get<ChangeRecoMode>('motions_recommendation_text_mode').subscribe(mode => {
+            if (mode) {
+                this.crMode = this.determineCrMode(mode);
+            }
+        });
         this.configService
             .get<boolean>('motions_show_sequential_numbers')
             .subscribe(shown => (this.showSequential = shown));
+        this.configService
+            .get<string>('motions_amendments_text_mode')
+            .subscribe(amendmentTextMode => (this.amendmentTextMode = amendmentTextMode));
 
         // Update statute paragraphs
         this.statuteRepo.getViewModelListObservable().subscribe(newViewStatuteParagraphs => {
@@ -510,17 +550,29 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
         });
 
         // use the filter and the search service to get the current sorting
-        this.motionFilterService.initFilters(this.motionObserver);
-        this.motionSortService.initSorting(this.motionFilterService.outputObservable);
+        if (this.configService.instant<boolean>('motions_amendments_main_table')) {
+            this.motionFilterService.initFilters(this.motionObserver);
+            this.motionSortService.initSorting(this.motionFilterService.outputObservable);
+            this.sortedMotionsObservable = this.motionSortService.outputObservable;
+        } else if (this.motion.parent_id) {
+            // only use the amendments for this motion
+            this.amendmentFilterService.initFilters(this.repo.amendmentsTo(this.motion.parent_id));
+            this.amendmentSortService.initSorting(this.amendmentFilterService.outputObservable);
+            this.sortedMotionsObservable = this.amendmentSortService.outputObservable;
+        } else {
+            this.sortedMotions = [];
+        }
 
-        this.subscriptions.push(
-            this.motionSortService.outputObservable.subscribe(motions => {
-                if (motions) {
-                    this.sortedMotions = motions;
-                    this.setSurroundingMotions();
-                }
-            })
-        );
+        if (this.sortedMotionsObservable) {
+            this.subscriptions.push(
+                this.sortedMotionsObservable.subscribe(motions => {
+                    if (motions) {
+                        this.sortedMotions = motions;
+                        this.setSurroundingMotions();
+                    }
+                })
+            );
+        }
 
         /**
          * Check for changes of the viewport subject changes
@@ -557,6 +609,24 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
     }
 
     /**
+     * Subscribes to all new amendment's change recommendations so we can access their data for the diff view
+     */
+    private resetAmendmentChangeRecoListener(): void {
+        this.amendments.forEach((amendment: ViewMotion) => {
+            if (this.amendmentChangeRecoSubscriptions[amendment.id] === undefined) {
+                this.amendmentChangeRecoSubscriptions[
+                    amendment.id
+                ] = this.changeRecoRepo
+                    .getChangeRecosOfMotionObservable(amendment.id)
+                    .subscribe((changeRecos: ViewMotionChangeRecommendation[]): void => {
+                        this.amendmentChangeRecos[amendment.id] = changeRecos;
+                        this.recalcUnifiedChanges();
+                    });
+            }
+        });
+    }
+
+    /**
      * Merges amendments and change recommendations and sorts them by the line numbers.
      * Called each time one of these arrays changes.
      *
@@ -580,8 +650,12 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
         }
         if (this.amendments) {
             this.amendments.forEach((amendment: ViewMotion): void => {
+                const toApplyChanges = (this.amendmentChangeRecos[amendment.id] || []).filter(
+                    // The rejected change recommendations for amendments should not be considered
+                    change => change.showInFinalView()
+                );
                 this.repo
-                    .getAmendmentAmendedParagraphs(amendment, this.lineLength)
+                    .getAmendmentAmendedParagraphs(amendment, this.lineLength, toApplyChanges)
                     .forEach((change: ViewUnifiedChange): void => {
                         this.allChangingObjects.push(change);
                     });
@@ -596,6 +670,16 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
                 return 0;
             }
         });
+
+        // When "diff" is the default view mode, the crMode might have been set
+        // before the motion and allChangingObjects have been loaded. As the availability of "diff" depends on
+        // allChangingObjects, we set "diff" first in this case (in the config-listener) and perform the actual
+        // check if "diff" is possible now.
+        // Test: "diff" as default view. Open a motion, create an amendment. "Original" should be set automatically.
+        if (this.crMode) {
+            this.crMode = this.determineCrMode(this.crMode);
+        }
+
         this.cd.markForCheck();
     }
 
@@ -630,6 +714,7 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
 
                 this.repo.amendmentsTo(motionId).subscribe((amendments: ViewMotion[]): void => {
                     this.amendments = amendments;
+                    this.resetAmendmentChangeRecoListener();
                     this.recalcUnifiedChanges();
                 }),
                 this.repo
@@ -652,24 +737,22 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
                 this.amendmentEdit = true;
                 const parentMotion = this.repo.getViewModel(this.route.snapshot.queryParams.parent);
                 const defaultTitle = `${this.translate.instant('Amendment to')} ${parentMotion.identifierOrTitle}`;
-                const mode = this.configService.instant<string>('motions_amendments_text_mode');
-                if (mode === 'freestyle' || mode === 'fulltext') {
-                    defaultMotion.title = defaultTitle;
-                    defaultMotion.parent_id = parentMotion.id;
-                    defaultMotion.category_id = parentMotion.category_id;
-                    defaultMotion.tags_id = parentMotion.tags_id;
-                    defaultMotion.motion_block_id = parentMotion.motion_block_id;
-                    this.contentForm.patchValue({
-                        title: defaultTitle,
-                        category_id: parentMotion.category_id,
-                        motion_block_id: parentMotion.motion_block_id,
-                        parent_id: parentMotion.id,
-                        tags_id: parentMotion.tags_id
-                    });
-                }
-                if (mode === 'fulltext') {
+                defaultMotion.title = defaultTitle;
+                defaultMotion.parent_id = parentMotion.id;
+                defaultMotion.category_id = parentMotion.category_id;
+                defaultMotion.tags_id = parentMotion.tags_id;
+                defaultMotion.motion_block_id = parentMotion.motion_block_id;
+                this.contentForm.patchValue({
+                    title: defaultTitle,
+                    category_id: parentMotion.category_id,
+                    motion_block_id: parentMotion.motion_block_id,
+                    parent_id: parentMotion.id,
+                    tags_id: parentMotion.tags_id
+                });
+
+                if (this.amendmentTextMode === 'fulltext') {
                     defaultMotion.text = parentMotion.text;
-                    this.contentForm.patchValue({ text: parentMotion.text });
+                    this.contentForm.patchValue({ text: defaultMotion.text });
                 }
             }
             this.motion = new ViewCreateMotion(new CreateMotion(defaultMotion));
@@ -698,7 +781,9 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
                         this.contentForm.addControl('text_' + paragraphNo, new FormControl(''));
 
                         contentPatch.selected_paragraphs.push(paragraph);
-                        contentPatch.text = formMotion.amendment_paragraphs[paragraphNo]; // Workaround as 'text' is required from the backend
+
+                        // Workaround as 'text' is required from the backend
+                        contentPatch.text = formMotion.amendment_paragraphs[paragraphNo];
                         contentPatch['text_' + paragraphNo] = formMotion.amendment_paragraphs[paragraphNo];
                     }
                 });
@@ -875,14 +960,47 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
     }
 
     /**
+     * This returns the plain HTML of a changed area in an amendment, including its context,
+     * for the purpose of piping it into <motion-detail-original-change-recommendations>.
+     * This component works with plain HTML, hence we are composing plain HTML here, too.
+     *
+     * @param {DiffLinesInParagraph} paragraph
+     * @returns {string}
+     *
+     * TODO: Seems to be directly duplicated in the slide
+     */
+    public getAmendmentDiffTextWithContext(paragraph: DiffLinesInParagraph): string {
+        return (
+            '<div class="paragraphcontext">' +
+            paragraph.textPre +
+            '</div>' +
+            '<div>' +
+            paragraph.text +
+            '</div>' +
+            '<div class="paragraphcontext">' +
+            paragraph.textPost +
+            '</div>'
+        );
+    }
+
+    /**
      * If `this.motion` is an amendment, this returns the list of all changed paragraphs.
      * TODO: Cleanup: repo function could be injected part of the model, to have easier access
      *
-     * @param {boolean} includeUnchanged
      * @returns {DiffLinesInParagraph[]}
      */
-    public getAmendmentParagraphs(includeUnchanged: boolean): DiffLinesInParagraph[] {
-        return this.repo.getAmendmentParagraphs(this.motion, this.lineLength, includeUnchanged);
+    public getAmendmentParagraphs(): DiffLinesInParagraph[] {
+        return this.repo.getAmendmentParagraphLines(
+            this.motion,
+            this.lineLength,
+            this.crMode,
+            this.changeRecommendations,
+            this.showAmendmentContext
+        );
+    }
+
+    public getAmendmentParagraphLinesTitle(paragraph: DiffLinesInParagraph): string {
+        return this.repo.getAmendmentParagraphLinesTitle(paragraph);
     }
 
     /**
@@ -896,7 +1014,11 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
 
     public getChangesForDiffMode(): ViewUnifiedChange[] {
         return this.allChangingObjects.filter(change => {
-            return change.showInDiffView();
+            if (this.showAllAmendments) {
+                return true;
+            } else {
+                return change.showInDiffView();
+            }
         });
     }
 
@@ -1029,12 +1151,27 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
             editChangeRecommendation: false,
             newChangeRecommendation: true,
             lineRange: lineRange,
-            changeRecommendation: this.changeRecoRepo.createChangeRecommendationTemplate(
+            changeRecommendation: null
+        };
+        if (this.motion.isParagraphBasedAmendment()) {
+            const lineNumberedParagraphs = this.repo.getAllAmendmentParagraphsWithOriginalLineNumbers(
+                this.motion,
+                this.lineLength,
+                false
+            );
+            data.changeRecommendation = this.changeRecoRepo.createAmendmentChangeRecommendationTemplate(
+                this.motion,
+                lineNumberedParagraphs,
+                lineRange,
+                this.lineLength
+            );
+        } else {
+            data.changeRecommendation = this.changeRecoRepo.createMotionChangeRecommendationTemplate(
                 this.motion,
                 lineRange,
                 this.lineLength
-            )
-        };
+            );
+        }
         this.dialogService.open(MotionChangeRecommendationDialogComponent, {
             ...mediumDialogSettings,
             data: data
@@ -1082,8 +1219,7 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
      * Goes to the amendment creation wizard. Executed via click.
      */
     public createAmendment(): void {
-        const mode = this.configService.instant<string>('motions_amendments_text_mode');
-        if (mode === 'paragraph') {
+        if (this.amendmentTextMode === 'paragraph') {
             this.router.navigate(['./create-amendment'], { relativeTo: this.route });
         } else {
             this.router.navigate(['./motions/new-amendment'], {
@@ -1111,19 +1247,7 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
         // Update the motion
         try {
             // Just confirm this, if there is one modified final version the user would override.
-            if (this.motion.modified_final_version) {
-                const title = this.translate.instant(
-                    'Are you sure you want to copy the final version to the print template?'
-                );
-                if (await this.promptService.open(title)) {
-                    this.updateMotion({ modified_final_version: finalVersion }, this.motion).then(
-                        () => this.setChangeRecoMode(ChangeRecoMode.ModifiedFinal),
-                        this.raiseError
-                    );
-                }
-            } else {
-                await this.updateMotion({ modified_final_version: finalVersion }, this.motion);
-            }
+            await this.updateMotion({ modified_final_version: finalVersion }, this.motion);
         } catch (e) {
             this.raiseError(e);
         }
@@ -1217,25 +1341,24 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
 
     /**
      * Sets the previous and next motion. Sorts by the current sorting as used
-     * in the {@link MotionSortListService}
+     * in the {@link MotionSortListService} or {@link AmendmentSortListService},
+     * respectively
      */
     public setSurroundingMotions(): void {
         const indexOfCurrent = this.sortedMotions.findIndex(motion => {
             return motion === this.motion;
         });
-        if (indexOfCurrent > -1) {
-            if (indexOfCurrent > 0) {
-                this.previousMotion = this.sortedMotions[indexOfCurrent - 1];
-            } else {
-                this.previousMotion = null;
-            }
-            if (indexOfCurrent < this.sortedMotions.length - 1) {
-                this.nextMotion = this.sortedMotions[indexOfCurrent + 1];
-            } else {
-                this.nextMotion = null;
-            }
-            this.cd.markForCheck();
+        if (indexOfCurrent > 0) {
+            this.previousMotion = this.sortedMotions[indexOfCurrent - 1];
+        } else {
+            this.previousMotion = null;
         }
+        if (indexOfCurrent > -1 && indexOfCurrent < this.sortedMotions.length - 1) {
+            this.nextMotion = this.sortedMotions[indexOfCurrent + 1];
+        } else {
+            this.nextMotion = null;
+        }
+        this.cd.markForCheck();
     }
 
     /**
@@ -1309,7 +1432,8 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
     /**
      * Adds or removes a tag to the current motion
      *
-     * @param id Motion tag id
+     * @param {MouseEvent} event
+     * @param {number} id Motion tag id
      */
     public setTag(event: MouseEvent, id: number): void {
         event.stopPropagation();
@@ -1352,7 +1476,8 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
         this.pdfExport.exportSingleMotion(this.motion, {
             lnMode: this.lnMode === this.LineNumberingMode.Inside ? this.LineNumberingMode.Outside : this.lnMode,
             crMode: this.crMode,
-            comments: this.motion.commentSectionIds.concat([PERSONAL_NOTE_ID]) // export all comment fields as well as personal note
+            // export all comment fields as well as personal note
+            comments: this.motion.commentSectionIds.concat([PERSONAL_NOTE_ID])
         });
     }
 
@@ -1363,13 +1488,6 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
      */
     public onClickAttachment(attachment: Mediafile): void {
         window.open(attachment.url);
-    }
-
-    /**
-     * Handler for creating a poll
-     */
-    public createPoll(): void {
-        this.repo.createPoll(this.motion).catch(this.raiseError);
     }
 
     /**
@@ -1411,6 +1529,30 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
         } else {
             this.notifyService.sendToAllUsers<MotionEditNotification>(this.NOTIFICATION_EDIT_MOTION, content);
         }
+    }
+
+    /**
+     * Tries to determine the realistic CR-Mode from a given CR mode
+     */
+    private determineCrMode(mode: ChangeRecoMode): ChangeRecoMode {
+        if (mode === ChangeRecoMode.Final) {
+            if (this.motion?.modified_final_version) {
+                return ChangeRecoMode.ModifiedFinal;
+                /**
+                 * Because without change recos you cannot escape the final version anymore
+                 */
+            } else if (!this.allChangingObjects?.length) {
+                return ChangeRecoMode.Original;
+            }
+        } else if (mode === ChangeRecoMode.Changed && !this.allChangingObjects?.length) {
+            /**
+             * Because without change recos you cannot escape the changed version view
+             * You will not be able to automatically change to the Changed view after creating
+             * a change reco. The autoupdate has to come "after" this routine
+             */
+            return ChangeRecoMode.Original;
+        }
+        return mode;
     }
 
     /**
@@ -1468,7 +1610,7 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
      * Function to handle leaving persons and
      * recognize if there is no other person editing the same motion anymore.
      *
-     * @param senderId The id of the sender who has left the editing-view.
+     * @param senderName The name of the sender who has left the editing-view.
      */
     private recognizeOtherWorkerOnMotion(senderName: string): void {
         this.otherWorkOnMotion = this.otherWorkOnMotion.filter(value => value !== senderName);
@@ -1540,12 +1682,12 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
      * Function to prevent automatically closing the window/tab,
      * if the user is editing a motion.
      *
-     * @param $event The event object from 'onUnbeforeUnload'.
+     * @param event The event object from 'onUnbeforeUnload'.
      */
     @HostListener('window:beforeunload', ['$event'])
-    public stopClosing($event: Event): void {
+    public stopClosing(event: Event): void {
         if (this.editMotion) {
-            $event.returnValue = null;
+            event.returnValue = null;
         }
     }
 
@@ -1599,5 +1741,16 @@ export class MotionDetailComponent extends BaseViewComponent implements OnInit, 
      */
     public detectChanges(): void {
         this.cd.markForCheck();
+    }
+
+    public openDialog(): void {
+        const dialogData = {
+            collectionString: ViewMotionPoll.COLLECTIONSTRING,
+            motion_id: this.motion.id,
+            motion: this.motion,
+            ...this.motionPollService.getDefaultPollData(this.motion.id)
+        };
+
+        this.pollDialog.openDialog(dialogData);
     }
 }

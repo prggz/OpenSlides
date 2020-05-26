@@ -6,8 +6,10 @@ import { Title } from '@angular/platform-browser';
 import { TranslateService } from '@ngx-translate/core';
 
 import { ChangeRecommendationRepositoryService } from 'app/core/repositories/motions/change-recommendation-repository.service';
+import { MotionRepositoryService } from 'app/core/repositories/motions/motion-repository.service';
 import { ConfigService } from 'app/core/ui-services/config.service';
 import { DiffService, LineRange } from 'app/core/ui-services/diff.service';
+import { LineNumberedString, LinenumberingService } from 'app/core/ui-services/linenumbering.service';
 import { PromptService } from 'app/core/ui-services/prompt.service';
 import { ViewUnifiedChange, ViewUnifiedChangeType } from 'app/shared/models/motions/view-unified-change';
 import { mediumDialogSettings } from 'app/shared/utils/dialog-settings';
@@ -24,12 +26,14 @@ import {
     MotionTitleChangeRecommendationDialogComponent,
     MotionTitleChangeRecommendationDialogComponentData
 } from '../motion-title-change-recommendation-dialog/motion-title-change-recommendation-dialog.component';
+import { ViewMotionAmendedParagraph } from '../../../../models/view-motion-amended-paragraph';
 
 /**
  * This component displays the original motion text with the change blocks inside.
  * If the user is an administrator, each change block can be rejected.
  *
- * The line numbers are provided within the pre-rendered HTML, so we have to work with raw HTML and native HTML elements.
+ * The line numbers are provided within the pre-rendered HTML, so we have to work with raw HTML
+ * and native HTML elements.
  *
  * It takes the styling from the parent component.
  *
@@ -42,6 +46,7 @@ import {
  *       [scrollToChange]="change"
  *       [highlightedLine]="highlightedLine"
  *       [lineNumberingMode]="lnMode"
+ *       [showAllAmendments]="showAllAmendments"
  *       (createChangeRecommendation)="createChangeRecommendation($event)"
  * ></os-motion-detail-diff>
  * ```
@@ -67,6 +72,8 @@ export class MotionDetailDiffComponent extends BaseViewComponent implements Afte
     public highlightedLine: number;
     @Input()
     public lineNumberingMode: LineNumberingMode;
+    @Input()
+    public showAllAmendments: boolean;
 
     @Output()
     public createChangeRecommendation: EventEmitter<LineRange> = new EventEmitter<LineRange>();
@@ -83,7 +90,9 @@ export class MotionDetailDiffComponent extends BaseViewComponent implements Afte
      * @param translate
      * @param matSnackBar
      * @param diff
+     * @param lineNumbering
      * @param recoRepo
+     * @param motionRepo
      * @param dialogService
      * @param configService
      * @param el
@@ -94,7 +103,9 @@ export class MotionDetailDiffComponent extends BaseViewComponent implements Afte
         protected translate: TranslateService, // protected required for ng-translate-extract
         matSnackBar: MatSnackBar,
         private diff: DiffService,
+        private lineNumbering: LinenumberingService,
         private recoRepo: ChangeRecommendationRepositoryService,
+        private motionRepo: MotionRepositoryService,
         private dialogService: MatDialog,
         private configService: ConfigService,
         private el: ElementRef,
@@ -122,13 +133,16 @@ export class MotionDetailDiffComponent extends BaseViewComponent implements Afte
             return '';
         }
 
-        return this.diff.extractMotionLineRange(
-            this.motion.text,
-            lineRange,
-            true,
-            this.lineLength,
-            this.highlightedLine
-        );
+        let baseText: LineNumberedString;
+        if (this.motion.isParagraphBasedAmendment()) {
+            baseText = this.motionRepo
+                .getAllAmendmentParagraphsWithOriginalLineNumbers(this.motion, this.lineLength, true)
+                .join('\n');
+        } else {
+            baseText = this.lineNumbering.insertLineNumbers(this.motion.text, this.lineLength);
+        }
+
+        return this.diff.extractMotionLineRange(baseText, lineRange, true, this.lineLength, this.highlightedLine);
     }
 
     /**
@@ -157,7 +171,15 @@ export class MotionDetailDiffComponent extends BaseViewComponent implements Afte
      * @param {ViewUnifiedChange} change
      */
     public getDiff(change: ViewUnifiedChange): string {
-        return this.diff.getChangeDiff(this.motion.text, change, this.lineLength, this.highlightedLine);
+        let motionHtml: string;
+        if (this.motion.isParagraphBasedAmendment()) {
+            const parentMotion = this.motionRepo.getViewModel(this.motion.parent_id);
+            motionHtml = parentMotion.text;
+        } else {
+            motionHtml = this.motion.text;
+        }
+        const baseHtml = this.lineNumbering.insertLineNumbers(motionHtml, this.lineLength);
+        return this.diff.getChangeDiff(baseHtml, change, this.lineLength, this.highlightedLine);
     }
 
     /**
@@ -167,12 +189,15 @@ export class MotionDetailDiffComponent extends BaseViewComponent implements Afte
         if (!this.lineLength) {
             return ''; // @TODO This happens in the test case when the lineLength-variable is not set
         }
-        return this.diff.getTextRemainderAfterLastChange(
-            this.motion.text,
-            this.changes,
-            this.lineLength,
-            this.highlightedLine
-        );
+        let baseText: LineNumberedString;
+        if (this.motion.isParagraphBasedAmendment()) {
+            baseText = this.motionRepo
+                .getAllAmendmentParagraphsWithOriginalLineNumbers(this.motion, this.lineLength, true)
+                .join('\n');
+        } else {
+            baseText = this.lineNumbering.insertLineNumbers(this.motion.text, this.lineLength);
+        }
+        return this.diff.getTextRemainderAfterLastChange(baseText, this.changes, this.lineLength, this.highlightedLine);
     }
 
     /**
@@ -341,6 +366,10 @@ export class MotionDetailDiffComponent extends BaseViewComponent implements Afte
             ...mediumDialogSettings,
             data: data
         });
+    }
+
+    public setAmendmentState(change: ViewUnifiedChange, state: number): void {
+        this.motionRepo.setState((change as ViewMotionAmendedParagraph).amendment, state).catch(this.raiseError);
     }
 
     /**

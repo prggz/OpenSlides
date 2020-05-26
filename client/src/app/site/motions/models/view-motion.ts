@@ -1,4 +1,5 @@
-import { _ } from 'app/core/translate/translation-marker';
+import { marker as _ } from '@biesbjerg/ngx-translate-extract-marker';
+
 import { ConfigService } from 'app/core/ui-services/config.service';
 import { DiffLinesInParagraph } from 'app/core/ui-services/diff.service';
 import { SearchProperty, SearchRepresentation } from 'app/core/ui-services/search.service';
@@ -16,6 +17,7 @@ import { ViewCategory } from './view-category';
 import { ViewMotionBlock } from './view-motion-block';
 import { ViewMotionChangeRecommendation } from './view-motion-change-recommendation';
 import { ViewMotionCommentSection } from './view-motion-comment-section';
+import { ViewMotionPoll } from './view-motion-poll';
 import { ViewState } from './view-state';
 import { ViewSubmitter } from './view-submitter';
 import { ViewWorkflow } from './view-workflow';
@@ -197,7 +199,6 @@ export class ViewMotion extends BaseViewModelWithAgendaItemAndListOfSpeakers<Mot
      * Extract the lines of the amendments
      * If an amendments has multiple changes, they will be printed like an array of strings
      *
-     * @param amendment the motion to create the amendment to
      * @return The lines of the amendment
      */
     public getChangeLines(): string {
@@ -359,6 +360,7 @@ interface TIMotionRelations {
     amendments?: ViewMotion[];
     changeRecommendations?: ViewMotionChangeRecommendation[];
     diffLines?: DiffLinesInParagraph[];
+    polls: ViewMotionPoll[];
 }
 
 export interface ViewMotion extends MotionWithoutNestedModels, TIMotionRelations {}

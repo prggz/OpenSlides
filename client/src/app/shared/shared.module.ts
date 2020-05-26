@@ -6,7 +6,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 // MaterialUI modules
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatBottomSheetModule } from '@angular/material/bottom-sheet';
-import { MatButtonModule } from '@angular/material/button';
+import { MatButtonModule, MatAnchor } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -16,11 +16,12 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatSliderModule } from '@angular/material/slider';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSortModule } from '@angular/material/sort';
 import { MatStepperModule } from '@angular/material/stepper';
@@ -64,6 +65,7 @@ import { PblNgridTargetEventsModule } from '@pebula/ngrid/target-events';
 
 // time picker because angular still doesnt offer one!!
 import { NgxMaterialTimepickerModule } from 'ngx-material-timepicker';
+import { ChartsModule } from 'ng2-charts';
 
 // components
 import { HeadBarComponent } from './components/head-bar/head-bar.component';
@@ -105,10 +107,26 @@ import { SuperSearchComponent } from 'app/site/common/components/super-search/su
 import { OverlayComponent } from 'app/site/common/components/overlay/overlay.component';
 import { PreviewComponent } from './components/preview/preview.component';
 import { PdfViewerModule } from 'ng2-pdf-viewer';
-import { GlobalSpinnerComponent } from 'app/site/common/components/global-spinner/global-spinner.component';
+
 import { HeightResizingDirective } from './directives/height-resizing.directive';
 import { TrustPipe } from './pipes/trust.pipe';
 import { LocalizedDatePipe } from './pipes/localized-date.pipe';
+import { ChartsComponent } from './components/charts/charts.component';
+import { CheckInputComponent } from './components/check-input/check-input.component';
+import { BannerComponent } from './components/banner/banner.component';
+import { PollFormComponent } from 'app/site/polls/components/poll-form/poll-form.component';
+import { MotionPollDialogComponent } from 'app/site/motions/modules/motion-poll/motion-poll-dialog/motion-poll-dialog.component';
+import { ParsePollNumberPipe } from './pipes/parse-poll-number.pipe';
+import { ReversePipe } from './pipes/reverse.pipe';
+import { PollKeyVerbosePipe } from './pipes/poll-key-verbose.pipe';
+import { PollPercentBasePipe } from './pipes/poll-percent-base.pipe';
+import { VotingPrivacyWarningComponent } from './components/voting-privacy-warning/voting-privacy-warning.component';
+import { MotionPollDetailContentComponent } from './components/motion-poll-detail-content/motion-poll-detail-content.component';
+import { AssignmentPollDetailContentComponent } from './components/assignment-poll-detail-content/assignment-poll-detail-content.component';
+
+import { GlobalSpinnerComponent } from './components/global-spinner/global-spinner.component';
+import { UserMenuComponent } from './components/user-menu/user-menu.component';
+import { JitsiComponent } from './components/jitsi/jitsi.component';
 
 /**
  * Share Module for all "dumb" components and pipes.
@@ -158,6 +176,7 @@ import { LocalizedDatePipe } from './pipes/localized-date.pipe';
         MatStepperModule,
         MatTabsModule,
         MatSliderModule,
+        MatSlideToggleModule,
         MatDividerModule,
         DragDropModule,
         OpenSlidesTranslateModule.forChild(),
@@ -171,7 +190,8 @@ import { LocalizedDatePipe } from './pipes/localized-date.pipe';
         PblNgridMaterialModule,
         PblNgridTargetEventsModule,
         PdfViewerModule,
-        NgxMaterialTimepickerModule
+        NgxMaterialTimepickerModule,
+        ChartsModule
     ],
     exports: [
         FormsModule,
@@ -205,6 +225,7 @@ import { LocalizedDatePipe } from './pipes/localized-date.pipe';
         MatButtonToggleModule,
         MatStepperModule,
         MatSliderModule,
+        MatSlideToggleModule,
         MatDividerModule,
         DragDropModule,
         NgxMatSelectSearchModule,
@@ -254,11 +275,26 @@ import { LocalizedDatePipe } from './pipes/localized-date.pipe';
         ExtensionFieldComponent,
         RoundedInputComponent,
         GlobalSpinnerComponent,
+        UserMenuComponent,
         OverlayComponent,
         PreviewComponent,
         NgxMaterialTimepickerModule,
+        ChartsModule,
         TrustPipe,
-        LocalizedDatePipe
+        LocalizedDatePipe,
+        ChartsComponent,
+        CheckInputComponent,
+        BannerComponent,
+        PollFormComponent,
+        MotionPollDialogComponent,
+        ParsePollNumberPipe,
+        ReversePipe,
+        PollKeyVerbosePipe,
+        PollPercentBasePipe,
+        VotingPrivacyWarningComponent,
+        MotionPollDetailContentComponent,
+        AssignmentPollDetailContentComponent,
+        JitsiComponent
     ],
     declarations: [
         PermsDirective,
@@ -300,12 +336,26 @@ import { LocalizedDatePipe } from './pipes/localized-date.pipe';
         RoundedInputComponent,
         ProgressSnackBarComponent,
         GlobalSpinnerComponent,
+        UserMenuComponent,
         SuperSearchComponent,
         OverlayComponent,
         PreviewComponent,
         HeightResizingDirective,
         TrustPipe,
-        LocalizedDatePipe
+        LocalizedDatePipe,
+        ChartsComponent,
+        CheckInputComponent,
+        BannerComponent,
+        PollFormComponent,
+        MotionPollDialogComponent,
+        ParsePollNumberPipe,
+        ReversePipe,
+        PollKeyVerbosePipe,
+        PollPercentBasePipe,
+        VotingPrivacyWarningComponent,
+        MotionPollDetailContentComponent,
+        AssignmentPollDetailContentComponent,
+        JitsiComponent
     ],
     providers: [
         {
@@ -321,16 +371,11 @@ import { LocalizedDatePipe } from './pipes/localized-date.pipe';
         DecimalPipe,
         ProgressSnackBarComponent,
         TrustPipe,
-        LocalizedDatePipe
-    ],
-    entryComponents: [
-        SortBottomSheetComponent,
-        C4DialogComponent,
-        PromptDialogComponent,
-        ChoiceDialogComponent,
-        ProjectionDialogComponent,
-        ProgressSnackBarComponent,
-        SuperSearchComponent
+        LocalizedDatePipe,
+        ParsePollNumberPipe,
+        ReversePipe,
+        PollKeyVerbosePipe,
+        PollPercentBasePipe
     ]
 })
 export class SharedModule {}

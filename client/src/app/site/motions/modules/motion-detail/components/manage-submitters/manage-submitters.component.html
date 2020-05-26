@@ -1,5 +1,5 @@
 <h4>
-    <span translate>Submitters</span>
+    <span>{{ 'Submitters' | translate }}</span>
     <button
         class="small-button"
         type="button"
@@ -34,17 +34,22 @@
     </os-sorting-list>
 
     <form *ngIf="users && users.value.length > 0" [formGroup]="addSubmitterForm">
-        <os-search-value-selector
-            class="search-users"
-            ngDefaultControl
-            [formControl]="addSubmitterForm.get('userId')"
-            listname="{{ 'Select or search new submitter ...' | translate }}"
-            [inputListValues]="users"
-        ></os-search-value-selector>
+        <mat-form-field>
+            <os-search-value-selector
+                class="search-users"
+                formControlName="userId"
+                placeholder="{{ 'Select or search new submitter ...' | translate }}"
+                [inputListValues]="users"
+            ></os-search-value-selector>
+        </mat-form-field>
     </form>
 
     <p>
-        <button type="button" mat-button (click)="onSave()"><span translate>Save</span></button>
-        <button type="button" mat-button (click)="onCancel()"><span translate>Cancel</span></button>
+        <button type="button" mat-button (click)="onSave()">
+            <span>{{ 'Save' | translate }}</span>
+        </button>
+        <button type="button" mat-button (click)="onCancel()">
+            <span>{{ 'Cancel' | translate }}</span>
+        </button>
     </p>
 </div>

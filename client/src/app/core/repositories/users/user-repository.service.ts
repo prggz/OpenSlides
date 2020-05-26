@@ -17,6 +17,11 @@ import { DataSendService } from '../../core-services/data-send.service';
 import { DataStoreService } from '../../core-services/data-store.service';
 import { environment } from '../../../../environments/environment';
 
+export interface MassImportResult {
+    importedTrackIds: number[];
+    errors: { [id: number]: string };
+}
+
 /**
  * type for determining the user name from a string during import.
  * See {@link parseUserString} for implementations
@@ -125,6 +130,18 @@ export class UserRepositoryService extends BaseRepository<ViewUser, User, UserTi
         return name.trim();
     }
 
+    public getLevelAndNumber(titleInformation: UserTitleInformation): string {
+        if (titleInformation.structure_level && titleInformation.number) {
+            return `${titleInformation.structure_level} · ${this.translate.instant('No.')} ${titleInformation.number}`;
+        } else if (titleInformation.structure_level) {
+            return titleInformation.structure_level;
+        } else if (titleInformation.number) {
+            return `${this.translate.instant('No.')} ${titleInformation.number}`;
+        } else {
+            return '';
+        }
+    }
+
     public getVerboseName = (plural: boolean = false) => {
         return this.translate.instant(plural ? 'Participants' : 'Participant');
     };
@@ -145,12 +162,13 @@ export class UserRepositoryService extends BaseRepository<ViewUser, User, UserTi
     }
 
     /**
-     * Adds teh short and full name to the view user.
+     * Adds the short and full name to the view user.
      */
     protected createViewModelWithTitles(model: User): ViewUser {
         const viewModel = super.createViewModelWithTitles(model);
         viewModel.getFullName = () => this.getFullName(viewModel);
         viewModel.getShortName = () => this.getShortName(viewModel);
+        viewModel.getLevelAndNumber = () => this.getLevelAndNumber(viewModel);
         return viewModel;
     }
 
@@ -209,15 +227,11 @@ export class UserRepositoryService extends BaseRepository<ViewUser, User, UserTi
      *
      * @param newEntries
      */
-    public async bulkCreate(newEntries: NewEntry<User>[]): Promise<number[]> {
+    public async bulkCreate(newEntries: NewEntry<User>[]): Promise<MassImportResult> {
         const data = newEntries.map(entry => {
             return { ...entry.newEntry, importTrackId: entry.importTrackId };
         });
-        const response = (await this.httpService.post(`/rest/users/user/mass_import/`, { users: data })) as {
-            detail: string;
-            importedTrackIds: number[];
-        };
-        return response.importedTrackIds;
+        return await this.httpService.post<MassImportResult>(`/rest/users/user/mass_import/`, { users: data });
     }
 
     /**
@@ -293,7 +307,8 @@ export class UserRepositoryService extends BaseRepository<ViewUser, User, UserTi
         } else if (numEmails === 1) {
             msg = this.translate.instant('One email was send sucessfully.');
         } else {
-            msg = this.translate.instant('%num% emails were send sucessfully.').replace('%num%', numEmails);
+            msg = this.translate.instant('%num% emails were send sucessfully.');
+            msg = msg.replace('%num%', numEmails);
         }
 
         if (noEmailIds.length) {
@@ -375,7 +390,7 @@ export class UserRepositoryService extends BaseRepository<ViewUser, User, UserTi
      * @param schema optional hint on how to handle the strings.
      * @returns A User object (note: is only a local object, not uploaded to the server)
      */
-    public parseUserString(inputUser: string, schema?: StringNamingSchema): User {
+    public parseUserString(inputUser: string, schema: StringNamingSchema = 'firstSpaceLast'): User {
         const newUser: Partial<User> = {};
         if (schema === 'lastCommaFirst') {
             const commaSeparated = inputUser.split(',');
@@ -390,7 +405,7 @@ export class UserRepositoryService extends BaseRepository<ViewUser, User, UserTi
                 default:
                     newUser.first_name = inputUser;
             }
-        } else if (!schema || schema === 'firstSpaceLast') {
+        } else if (schema === 'firstSpaceLast') {
             const splitUser = inputUser.split(' ');
             switch (splitUser.length) {
                 case 1:

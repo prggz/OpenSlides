@@ -15,7 +15,7 @@
 @import './app/shared/components/projector-button/projector-button.component.scss';
 @import './app/site/agenda/components/list-of-speakers/list-of-speakers.component.scss-theme.scss';
 @import './app/shared/components/sorting-tree/sorting-tree.component.scss';
-@import './app/site/common/components/global-spinner/global-spinner.component.scss';
+@import './app/shared/components/global-spinner/global-spinner.component.scss';
 @import './app/shared/components/tile/tile.component.scss';
 @import './app/shared/components/block-tile/block-tile.component.scss';
 @import './app/shared/components/icon-container/icon-container.component.scss';
@@ -25,6 +25,16 @@
 @import './app/shared/components/rounded-input/rounded-input.component.scss';
 @import './app/shared/components/meta-text-block/meta-text-block.component.scss';
 @import './app/site/config/components/config-field/config-field.component.scss-theme.scss';
+@import './app/site/motions/modules/motion-detail/components/amendment-create-wizard/amendment-create-wizard.components.scss-theme.scss';
+@import './app/site/motions/modules/motion-detail/components/motion-detail-diff/motion-detail-diff.component.scss-theme.scss';
+@import './app/shared/components/banner/banner.component.scss-theme.scss';
+@import './app/site/motions/modules/motion-poll/motion-poll/motion-poll.component.scss-theme.scss';
+@import './app/site/motions/modules/motion-poll/motion-poll-detail/motion-poll-detail.component.scss-theme.scss';
+@import './app/site/assignments/components/assignment-poll-detail/assignment-poll-detail-component.scss-theme.scss';
+@import './app/shared/components/progress-snack-bar/progress-snack-bar.component.scss-theme.scss';
+@import './app/shared/components/jitsi/jitsi.component.scss-theme.scss';
+@import './app/shared/components/list-view-table/list-view-table.component.scss-theme.scss';
+@import './app/site/common/components/user-statistics/user-statistics.component.scss-theme.scss';
 
 /** fonts */
 @import './assets/styles/fonts.scss';
@@ -50,6 +60,16 @@ $narrow-spacing: (
     @include os-rounded-input-style($theme);
     @include os-meta-text-block-style($theme);
     @include os-config-field-style($theme);
+    @include os-amendment-create-wizard-style($theme);
+    @include os-motion-detail-diff-style($theme);
+    @include os-banner-style($theme);
+    @include os-motion-poll-style($theme);
+    @include os-motion-poll-detail-style($theme);
+    @include os-assignment-poll-detail-style($theme);
+    @include os-progress-snack-bar-style($theme);
+    @include os-jitsi-theme($theme);
+    @include os-list-view-table-theme($theme);
+    @include os-user-statistics-style($theme);
 }
 
 /** Load projector specific SCSS values */
@@ -278,6 +298,10 @@ b,
     font-weight: 500;
 }
 
+.italic {
+    font-style: italic;
+}
+
 .generic-mini-button {
     bottom: -28px;
     z-index: 100;
@@ -317,9 +341,15 @@ b,
     text-align: center;
     color: gray;
 }
-mat-card {
+
+.regular-shadow {
     box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.37) !important;
 }
+
+.mat-card {
+    @extend .regular-shadow;
+}
+
 .os-card {
     max-width: 770px;
     margin-top: 20px !important;
@@ -844,6 +874,39 @@ button.mat-menu-item.selected {
     .mat-expansion-panel-body {
         padding: 0 !important;
     }
+}
+
+/**
+ * Fix to enable multi line mat hints. See:
+ * https://github.com/angular/components/issues/5227
+ */
+.mat-form-field {
+    .mat-form-field-wrapper {
+        padding-bottom: 0;
+
+        .mat-form-field-underline {
+            position: initial !important;
+            display: block;
+            margin-top: -1px;
+        }
+
+        .mat-form-field-subscript-wrapper,
+        .mat-form-field-ripple {
+            position: initial !important;
+            display: table;
+        }
+
+        .mat-form-field-subscript-wrapper {
+            min-height: calc(1em + 1px);
+        }
+    }
+}
+
+/**
+ * Use to disable events on (i.e) matMenuTriggerFor
+ */
+.disabled {
+    pointer-events: none;
 }
 
 // custom horrizontal scroll-bar

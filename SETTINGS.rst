@@ -57,6 +57,26 @@ useful for debugging to print all email the the console::
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 
+Electronic voting
+=================
+
+Electronic voting is disabled by default, so only analog polls are available.
+To enable it, set::
+
+    ENABLE_ELECTRONIC_VOTING = True
+
+
+Jitsi integration
+=================
+
+To enable the audio conference with Jitsi Meet, you have to set the following variables:
+
+- `JITSI_DOMAIN`: must contain an url to a Jitsi server
+- `JITSI_ROOM_NAME`: the name of the room that should be used
+- `JITSI_PASSWORD`: (optional) the password of the room. Will be
+applied automatically from the settings.
+
+
 Logging
 =======
 
@@ -66,7 +86,7 @@ We recommend to enable all OpenSlides related logging with level `INFO` per
 default::
 
     LOGGING = {
-        'formatters':
+       'formatters': {
            'lessnoise': {
                'format': '[{levelname}] {name} {message}',
                'style': '{',

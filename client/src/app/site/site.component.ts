@@ -11,12 +11,8 @@ import { filter } from 'rxjs/operators';
 
 import { navItemAnim } from '../shared/animations';
 import { OfflineService } from 'app/core/core-services/offline.service';
-import { LoginDataService } from 'app/core/ui-services/login-data.service';
 import { OverlayService } from 'app/core/ui-services/overlay.service';
 import { UpdateService } from 'app/core/ui-services/update.service';
-import { DEFAULT_AUTH_TYPE } from 'app/shared/models/users/user';
-import { langToLocale } from 'app/shared/utils/lang-to-locale';
-import { AuthService } from '../core/core-services/auth.service';
 import { BaseComponent } from '../base.component';
 import { MainMenuService } from '../core/core-services/main-menu.service';
 import { OpenSlidesStatusService } from '../core/core-services/openslides-status.service';
@@ -46,13 +42,6 @@ export class SiteComponent extends BaseComponent implements OnInit {
     public sideNav: MatSidenav;
 
     /**
-     * Get the username from the operator (should be known already)
-     */
-    public username = '';
-
-    public authType = DEFAULT_AUTH_TYPE;
-
-    /**
      * is the user logged in, or the anonymous is active.
      */
     public isLoggedIn: boolean;
@@ -77,12 +66,8 @@ export class SiteComponent extends BaseComponent implements OnInit {
      */
     private delayedUpdateAvailable = false;
 
-    public samlChangePasswordUrl: string | null = null;
-
     /**
      * Constructor
-     *
-     * @param authService
      * @param route
      * @param operator
      * @param vp
@@ -97,7 +82,6 @@ export class SiteComponent extends BaseComponent implements OnInit {
         protected translate: TranslateService,
         offlineService: OfflineService,
         private updateService: UpdateService,
-        private authService: AuthService,
         private router: Router,
         public operator: OperatorService,
         public vp: ViewportService,
@@ -106,30 +90,14 @@ export class SiteComponent extends BaseComponent implements OnInit {
         public OSStatus: OpenSlidesStatusService,
         public timeTravel: TimeTravelService,
         private matSnackBar: MatSnackBar,
-        private overlayService: OverlayService,
-        private loginDataService: LoginDataService
+        private overlayService: OverlayService
     ) {
         super(title, translate);
-        overlayService.showSpinner(translate.instant('Loading data. Please wait...'));
-
-        this.operator.getViewUserObservable().subscribe(user => {
-            if (!operator.isAnonymous) {
-                this.username = user ? user.short_name : '';
-                this.isLoggedIn = true;
-            } else {
-                this.username = translate.instant('Guest');
-                this.isLoggedIn = false;
-            }
-        });
-        this.operator.authType.subscribe(authType => (this.authType = authType));
+        overlayService.showSpinner(translate.instant('Loading data. Please wait ...'));
 
         offlineService.isOffline().subscribe(offline => {
             this.isOffline = offline;
         });
-
-        this.loginDataService.samlSettings.subscribe(
-            samlSettings => (this.samlChangePasswordUrl = samlSettings ? samlSettings.changePasswordUrl : null)
-        );
 
         this.searchform = new FormGroup({ query: new FormControl([]) });
 
@@ -232,47 +200,6 @@ export class SiteComponent extends BaseComponent implements OnInit {
     }
 
     /**
-     * Let the user change the language
-     * @param lang the desired language (en, de, cs, ...)
-     */
-    public selectLang(selection: string): void {
-        this.translate.use(selection).subscribe();
-    }
-
-    /**
-     * Get the name of a Language by abbreviation.
-     *
-     * @param abbreviation The abbreviation of the languate or null, if the current
-     * language should be used.
-     */
-    public getLangName(abbreviation?: string): string {
-        if (!abbreviation) {
-            abbreviation = this.translate.currentLang;
-        }
-
-        if (abbreviation === 'en') {
-            return 'English';
-        } else if (abbreviation === 'de') {
-            return 'Deutsch';
-        } else if (abbreviation === 'cs') {
-            return 'Čeština';
-        } else if (abbreviation === 'ru') {
-            return 'русский';
-        }
-    }
-
-    /**
-     * Function to log out the current user
-     */
-    public logout(): void {
-        if (this.operator.guestsEnabled) {
-            this.overlayService.showSpinner(null, true);
-        }
-        this.authService.logout();
-        this.overlayService.logout();
-    }
-
-    /**
      * Handle swipes and gestures
      */
     public swipe(e: TouchEvent, when: string): void {
@@ -310,16 +237,6 @@ export class SiteComponent extends BaseComponent implements OnInit {
                 }
             }
         }
-    }
-
-    /**
-     * Get the timestamp for the current point in history mode.
-     * Tries to detect the ideal timestamp format using the translation service
-     *
-     * @returns the timestamp as string
-     */
-    public getHistoryTimestamp(): string {
-        return this.OSStatus.getHistoryTimeStamp(langToLocale(this.translate.currentLang));
     }
 
     /**

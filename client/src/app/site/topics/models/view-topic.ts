@@ -17,6 +17,10 @@ export interface TopicTitleInformation extends TitleInformationWithAgendaItem {
 export class ViewTopic extends BaseViewModelWithAgendaItemAndListOfSpeakers<Topic> implements TopicTitleInformation {
     public static COLLECTIONSTRING = Topic.COLLECTIONSTRING;
 
+    public get topic(): Topic {
+        return this._model;
+    }
+
     /**
      * Formats the category for search
      *
@@ -26,7 +30,7 @@ export class ViewTopic extends BaseViewModelWithAgendaItemAndListOfSpeakers<Topi
         return {
             properties: [
                 { key: 'Title', value: this.getTitle() },
-                { key: 'Text', value: this.text }
+                { key: 'Text', value: this.text, trusted: true }
             ],
             searchValue: [this.getTitle(), this.text]
         };

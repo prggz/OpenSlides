@@ -59,6 +59,8 @@ export class MotionPdfCatalogService {
     public motionListToDocDef(motions: ViewMotion[], exportInfo: MotionExportInfo): object {
         let doc = [];
         const motionDocList = [];
+        const printToc = exportInfo.pdfOptions.includes('toc');
+        const enforcePageBreaks = exportInfo.pdfOptions.includes('addBreaks');
 
         for (let motionIndex = 0; motionIndex < motions.length; ++motionIndex) {
             try {
@@ -69,8 +71,10 @@ export class MotionPdfCatalogService {
 
                 motionDocList.push(motionDocDef);
 
-                if (motionIndex < motions.length - 1) {
+                if (motionIndex < motions.length - 1 && enforcePageBreaks) {
                     motionDocList.push(this.pdfService.getPageBreak());
+                } else if (motionIndex < motions.length - 1 && !enforcePageBreaks) {
+                    motionDocList.push(this.pdfService.getSpacer());
                 }
             } catch (err) {
                 const errorText = `${this.translate.instant('Error during PDF creation of motion:')} ${
@@ -82,7 +86,7 @@ export class MotionPdfCatalogService {
         }
 
         // print extra data (title, preamble, categories, toc) only if there are more than 1 motion
-        if (motions.length > 1 && (!exportInfo.pdfOptions || exportInfo.pdfOptions.includes('toc'))) {
+        if (motions.length > 1 && (!exportInfo.pdfOptions || printToc)) {
             doc.push(
                 this.pdfService.createTitle('motions_export_title'),
                 this.pdfService.createPreamble('motions_export_preamble'),
@@ -243,8 +247,13 @@ export class MotionPdfCatalogService {
      * @returns {Array<Object>} An array containing the `DocDefinitions` for `pdf-make`.
      */
     private appendSubmittersAndRecommendation(motion: ViewMotion, style: StyleType = StyleType.DEFAULT): Object[] {
-        const recommendation = this.motionRepo.getExtendedRecommendationLabel(motion);
         let submitterList = '';
+        let state = '';
+        if (motion.state.isFinalState) {
+            state = this.motionRepo.getExtendedStateLabel(motion);
+        } else {
+            state = this.motionRepo.getExtendedRecommendationLabel(motion);
+        }
         for (let i = 0; i < motion.submitters.length; ++i) {
             submitterList +=
                 i !== motion.submitters.length - 1
@@ -257,7 +266,7 @@ export class MotionPdfCatalogService {
             `${motion.id}`,
             style,
             this.pdfService.createTocLineInline(submitterList),
-            this.pdfService.createTocLineInline(recommendation, true)
+            this.pdfService.createTocLineInline(state, true)
         );
     }
 }

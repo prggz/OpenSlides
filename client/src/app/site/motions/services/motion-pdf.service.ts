@@ -10,8 +10,9 @@ import { MotionRepositoryService } from 'app/core/repositories/motions/motion-re
 import { StatuteParagraphRepositoryService } from 'app/core/repositories/motions/statute-paragraph-repository.service';
 import { ConfigService } from 'app/core/ui-services/config.service';
 import { LinenumberingService } from 'app/core/ui-services/linenumbering.service';
-import { CalculablePollKey } from 'app/core/ui-services/poll.service';
 import { ViewUnifiedChange, ViewUnifiedChangeType } from 'app/shared/models/motions/view-unified-change';
+import { ParsePollNumberPipe } from 'app/shared/pipes/parse-poll-number.pipe';
+import { PollKeyVerbosePipe } from 'app/shared/pipes/poll-key-verbose.pipe';
 import { getRecommendationTypeName } from 'app/shared/utils/recommendation-type-names';
 import { MotionExportInfo } from './motion-export.service';
 import { MotionPollService } from './motion-poll.service';
@@ -62,9 +63,11 @@ export class MotionPdfService {
         private configService: ConfigService,
         private pdfDocumentService: PdfDocumentService,
         private htmlToPdfService: HtmlToPdfService,
-        private pollService: MotionPollService,
         private linenumberingService: LinenumberingService,
-        private commentRepo: MotionCommentSectionRepositoryService
+        private commentRepo: MotionCommentSectionRepositoryService,
+        private pollKeyVerbose: PollKeyVerbosePipe,
+        private parsePollNumber: ParsePollNumberPipe,
+        private motionPollService: MotionPollService
     ) {}
 
     /**
@@ -75,7 +78,8 @@ export class MotionPdfService {
      * @param crMode determine the used change Recommendation mode
      * @param contentToExport determine which content is to export. If left out, everything will be exported
      * @param infoToExport determine which metaInfo to export. If left out, everything will be exported.
-     * @param commentsToExport comments to chose for export. If 'allcomments' is set in infoToExport, this selection will be ignored and all comments exported
+     * @param commentsToExport comments to chose for export. If 'allcomments' is set in infoToExport,
+     *                         this selection will be ignored and all comments exported
      * @returns doc def for the motion
      */
     public motionToDocDef(motion: ViewMotion, exportInfo?: MotionExportInfo): object {
@@ -361,33 +365,33 @@ export class MotionPdfService {
         }
 
         // voting results
-        if (motion.motion.polls.length && (!infoToExport || infoToExport.includes('polls'))) {
+        if (motion.polls.length && (!infoToExport || infoToExport.includes('polls'))) {
             const column1 = [];
             const column2 = [];
             const column3 = [];
-            motion.motion.polls.map((poll, index) => {
-                if (poll.has_votes) {
-                    if (motion.motion.polls.length > 1) {
-                        column1.push(index + 1 + '. ' + this.translate.instant('Vote'));
-                        column2.push('');
-                        column3.push('');
-                    }
-                    const values: CalculablePollKey[] = ['yes', 'no', 'abstain'];
-                    if (poll.votesvalid) {
-                        values.push('votesvalid');
-                    }
-                    if (poll.votesinvalid) {
-                        values.push('votesinvalid');
-                    }
-                    if (poll.votescast) {
-                        values.push('votescast');
-                    }
-                    values.map(value => {
-                        column1.push(`${this.translate.instant(this.pollService.getLabel(value))}:`);
-                        column2.push(`${this.translate.instant(this.pollService.getSpecialLabel(poll[value]))}`);
-                        this.pollService.isAbstractValue(poll, value)
-                            ? column3.push('')
-                            : column3.push(`(${this.pollService.calculatePercentage(poll, value)} %)`);
+            motion.polls.forEach(poll => {
+                if (poll.hasVotes) {
+                    const tableData = this.motionPollService.generateTableData(poll);
+
+                    tableData.forEach(votingResult => {
+                        const votingOption = this.translate.instant(
+                            this.pollKeyVerbose.transform(votingResult.votingOption)
+                        );
+                        const value = votingResult.value[0];
+                        const resultValue = this.parsePollNumber.transform(value.amount);
+                        column1.push(`${votingOption}:`);
+                        if (value.showPercent) {
+                            const resultInPercent = this.motionPollService.getVoteValueInPercent(value.amount, poll);
+                            // hard check for "null" since 0 is a valid number in this case
+                            if (resultInPercent !== null) {
+                                column2.push(`(${resultInPercent})`);
+                            } else {
+                                column2.push('');
+                            }
+                        } else {
+                            column2.push('');
+                        }
+                        column3.push(resultValue);
                     });
                 }
             });
@@ -572,17 +576,16 @@ export class MotionPdfService {
         if (motion.isParagraphBasedAmendment()) {
             // this is logically redundant with the formation of amendments in the motion-detail html.
             // Should be refactored in a way that a service returns the correct html for both cases
-            for (const paragraph of this.motionRepo.getAmendmentParagraphs(motion, lineLength, false)) {
-                if (paragraph.diffLineTo === paragraph.diffLineFrom + 1) {
-                    motionText += `<h3>
-                        ${this.translate.instant('Line')} ${paragraph.diffLineFrom}:
-                    </h3>`;
-                } else {
-                    motionText += `<h3>
-                        ${this.translate.instant('Line')} ${paragraph.diffLineFrom} - ${paragraph.diffLineTo - 1}:
-                    </h3>`;
-                }
-
+            const changeRecos = this.changeRecoRepo.getChangeRecoOfMotion(motion.id);
+            const amendmentParas = this.motionRepo.getAmendmentParagraphLines(
+                motion,
+                lineLength,
+                crMode,
+                changeRecos,
+                false
+            );
+            for (const paragraph of amendmentParas) {
+                motionText += '<h3>' + this.motionRepo.getAmendmentParagraphLinesTitle(paragraph) + '</h3>';
                 motionText += `<div class="paragraphcontext">${paragraph.textPre}</div>`;
                 motionText += paragraph.text;
                 motionText += `<div class="paragraphcontext">${paragraph.textPost}</div>`;
@@ -630,11 +633,12 @@ export class MotionPdfService {
         return this.changeRecoRepo
             .getChangeRecoOfMotion(motion.id)
             .concat(
-                this.motionRepo
-                    .getAmendmentsInstantly(motion.id)
-                    .flatMap((amendment: ViewMotion) =>
-                        this.motionRepo.getAmendmentAmendedParagraphs(amendment, lineLength)
-                    )
+                this.motionRepo.getAmendmentsInstantly(motion.id).flatMap((amendment: ViewMotion) => {
+                    const changeRecos = this.changeRecoRepo
+                        .getChangeRecoOfMotion(amendment.id)
+                        .filter(reco => reco.showInFinalView());
+                    return this.motionRepo.getAmendmentAmendedParagraphs(amendment, lineLength, changeRecos);
+                })
             )
             .sort((a, b) => a.getLineFrom() - b.getLineFrom()) as ViewUnifiedChange[];
     }
@@ -655,15 +659,6 @@ export class MotionPdfService {
                 style: 'heading3',
                 margin: [0, 25, 0, 10]
             });
-
-            // determine the width of the reason depending on line numbering
-            // currently not used
-            // let columnWidth: string;
-            // if (lnMode === LineNumberingMode.Outside) {
-            //     columnWidth = '80%';
-            // } else {
-            //     columnWidth = '100%';
-            // }
 
             reason.push(this.htmlToPdfService.addPlainText(motion.reason));
 

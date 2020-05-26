@@ -103,6 +103,8 @@ if use_redis:
     # a (host, port) tuple — ('localhost', 6379);
     # or a unix domain socket path string — "/path/to/redis.sock".
     REDIS_ADDRESS = "redis://127.0.0.1"
+    # REDIS_READ_ONLY_ADDRESS
+    AMOUNT_REPLICAS = 1
 
     # Session backend
 
@@ -125,6 +127,16 @@ if use_redis:
 ENABLE_SAML = False
 if ENABLE_SAML:
     INSTALLED_APPS += ['openslides.saml']
+
+
+# Controls if electronic voting (means non-analog polls) are enabled.
+ENABLE_ELECTRONIC_VOTING = False
+
+
+# Jitsi integration
+# JITSI_DOMAIN = None
+# JITSI_ROOM_NAME = None
+# JITSI_PASSWORD = None
 
 
 # Internationalization

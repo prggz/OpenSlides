@@ -1,4 +1,3 @@
-import asyncio
 from typing import Any, Callable, Dict, Iterable, Optional, TypeVar, Union, cast
 
 from asgiref.sync import async_to_sync
@@ -7,7 +6,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from mypy_extensions import TypedDict
 
 from ..utils.cache import element_cache
-from ..utils.validate import validate_html
+from ..utils.validate import validate_html_permissive, validate_html_strict
 from .exceptions import ConfigError, ConfigNotFound
 from .models import ConfigStore
 
@@ -23,11 +22,10 @@ INPUT_TYPE_MAPPING = {
     "datetimepicker": int,
     "static": dict,
     "translations": list,
+    "groups": list,
 }
 
 ALLOWED_NONE = ("datetimepicker",)
-
-build_key_to_id_lock = asyncio.Lock()
 
 
 class ConfigHandler:
@@ -76,17 +74,10 @@ class ConfigHandler:
 
     async def build_key_to_id(self) -> None:
         """
-        Build the key_to_id dict.
-
-        Recreates it, if it does not exists.
-
-        This uses the element_cache. It expects, that the config values are in the database
-        before this is called.
+        Build the key_to_id dict, if it does not exists.
         """
-        async with build_key_to_id_lock:
-            # Another cliend could have build the key_to_id_dict, check and return early
-            if self.key_to_id is not None:
-                return
+        if self.key_to_id is not None:
+            return
 
         config_full_data = await element_cache.get_collection_data(
             self.get_collection_string()
@@ -100,12 +91,7 @@ class ConfigHandler:
         """
         Returns True, if the config varialbe was defined.
         """
-        try:
-            self.config_variables[key]
-        except KeyError:
-            return False
-        else:
-            return True
+        return key in self.config_variables
 
     # TODO: Remove the any by using right types in INPUT_TYPE_MAPPING
     def __setitem__(self, key: str, value: Any) -> None:
@@ -143,6 +129,13 @@ class ConfigHandler:
             ):
                 raise ConfigError("Invalid input. Choice does not match.")
 
+        if config_variable.input_type == "groups":
+            from ..users.models import Group
+
+            groups = set(group.id for group in Group.objects.all())
+            if not groups.issuperset(set(value)):
+                raise ConfigError("Invalid input. Chosen group does not exist.")
+
         for validator in config_variable.validators:
             try:
                 validator(value)
@@ -175,7 +168,10 @@ class ConfigHandler:
                         raise ConfigError(f"{required_entry} has to be a string.")
 
         if config_variable.input_type == "markupText":
-            value = validate_html(value)
+            if config_variable.name == "general_event_welcome_text":
+                value = validate_html_permissive(value)
+            else:
+                value = validate_html_strict(value)
 
         # Save the new value to the database.
         db_value = ConfigStore.objects.get(key=key)

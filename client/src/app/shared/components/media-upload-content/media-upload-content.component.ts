@@ -64,7 +64,7 @@ export class MediaUploadContentComponent implements OnInit {
     /**
      * Hold the mat table to manually render new rows
      */
-    @ViewChild(MatTable, { static: false })
+    @ViewChild(MatTable)
     public table: MatTable<any>;
 
     /**
@@ -90,7 +90,8 @@ export class MediaUploadContentComponent implements OnInit {
 
     public get selectedDirectoryId(): number | null {
         if (this.showDirectorySelector) {
-            return this.directorySelectionForm.controls.parent_id.value;
+            const parent = this.directorySelectionForm.controls.parent_id;
+            return !parent.value || typeof parent.value !== 'number' ? null : parent.value;
         } else {
             return this.directoryId;
         }
@@ -110,7 +111,7 @@ export class MediaUploadContentComponent implements OnInit {
         this.directoryBehaviorSubject = this.repo.getDirectoryBehaviorSubject();
         this.groupsBehaviorSubject = this.groupRepo.getViewModelListBehaviorSubject();
         this.directorySelectionForm = this.formBuilder.group({
-            parent_id: []
+            parent_id: null
         });
     }
 
@@ -138,7 +139,7 @@ export class MediaUploadContentComponent implements OnInit {
         input.set('title', fileData.title);
         const access_groups_id = fileData.form.value.access_groups_id || [];
         if (access_groups_id.length > 0) {
-            input.set('access_groups_id', '' + access_groups_id);
+            input.set('access_groups_id', JSON.stringify(access_groups_id));
         }
         if (this.selectedDirectoryId) {
             input.set('parent_id', '' + this.selectedDirectoryId);

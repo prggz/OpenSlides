@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
 import { FormControl, FormGroup } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Title } from '@angular/platform-browser';
@@ -8,19 +8,21 @@ import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, Subscription } from 'rxjs';
 
 import { CollectionStringMapperService } from 'app/core/core-services/collection-string-mapper.service';
-import { OperatorService } from 'app/core/core-services/operator.service';
+import { OperatorService, Permission } from 'app/core/core-services/operator.service';
 import { ListOfSpeakersRepositoryService } from 'app/core/repositories/agenda/list-of-speakers-repository.service';
 import { ProjectorRepositoryService } from 'app/core/repositories/projector/projector-repository.service';
 import { UserRepositoryService } from 'app/core/repositories/users/user-repository.service';
 import { ConfigService } from 'app/core/ui-services/config.service';
 import { DurationService } from 'app/core/ui-services/duration.service';
 import { PromptService } from 'app/core/ui-services/prompt.service';
+import { ViewportService } from 'app/core/ui-services/viewport.service';
+import { Selectable } from 'app/shared/components/selectable';
 import { SortingListComponent } from 'app/shared/components/sorting-list/sorting-list.component';
 import { BaseViewComponent } from 'app/site/base/base-view';
 import { ProjectorElementBuildDeskriptor } from 'app/site/base/projectable';
 import { ViewProjector } from 'app/site/projector/models/view-projector';
-import { CurrentListOfSpeakersService } from 'app/site/projector/services/current-agenda-item.service';
-import { CurrentListOfSpeakersSlideService } from 'app/site/projector/services/current-list-of-of-speakers-slide.service';
+import { CurrentListOfSpeakersSlideService } from 'app/site/projector/services/current-list-of-speakers-slide.service';
+import { CurrentListOfSpeakersService } from 'app/site/projector/services/current-list-of-speakers.service';
 import { ViewUser } from 'app/site/users/models/view-user';
 import { ViewListOfSpeakers } from '../../models/view-list-of-speakers';
 import { SpeakerState, ViewSpeaker } from '../../models/view-speaker';
@@ -31,10 +33,11 @@ import { SpeakerState, ViewSpeaker } from '../../models/view-speaker';
 @Component({
     selector: 'os-list-of-speakers',
     templateUrl: './list-of-speakers.component.html',
-    styleUrls: ['./list-of-speakers.component.scss']
+    styleUrls: ['./list-of-speakers.component.scss'],
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ListOfSpeakersComponent extends BaseViewComponent implements OnInit {
-    @ViewChild(SortingListComponent, { static: false })
+    @ViewChild(SortingListComponent)
     public listElement: SortingListComponent;
 
     /**
@@ -93,6 +96,11 @@ export class ListOfSpeakersComponent extends BaseViewComponent implements OnInit
     public addSpeakerForm: FormGroup;
 
     /**
+     * Check, if list-view is seen on mobile-device.
+     */
+    public isMobile = false;
+
+    /**
      * @returns true if the list of speakers list is currently closed
      */
     public get isListOfSpeakersClosed(): boolean {
@@ -121,6 +129,13 @@ export class ListOfSpeakersComponent extends BaseViewComponent implements OnInit
     private closReferenceProjectorId: number | null;
 
     private closSubscription: Subscription | null;
+
+    public showFistContributionHint: boolean;
+
+    /**
+     * List of speakers to save temporarily changes made by sorting-list.
+     */
+    private speakerListAsSelectable: Selectable[] = [];
 
     /**
      * Constructor for speaker list component. Generates the forms.
@@ -151,10 +166,12 @@ export class ListOfSpeakersComponent extends BaseViewComponent implements OnInit
         private userRepository: UserRepositoryService,
         private collectionStringMapper: CollectionStringMapperService,
         private currentListOfSpeakersSlideService: CurrentListOfSpeakersSlideService,
-        private config: ConfigService
+        private config: ConfigService,
+        private viewport: ViewportService,
+        private cd: ChangeDetectorRef
     ) {
         super(title, translate, snackBar);
-        this.addSpeakerForm = new FormGroup({ user_id: new FormControl([]) });
+        this.addSpeakerForm = new FormGroup({ user_id: new FormControl() });
     }
 
     /**
@@ -184,32 +201,35 @@ export class ListOfSpeakersComponent extends BaseViewComponent implements OnInit
             this.setListOfSpeakersId(id);
         }
 
-        // load and observe users
         this.subscriptions.push(
-            /* List of eligible users */
+            // Observe the user list
             this.userRepository.getViewModelListObservable().subscribe(users => {
                 this.users.next(users);
                 this.filterUsers();
-            })
-        );
-        this.subscriptions.push(
-            // detect changes in the form
+                this.cd.markForCheck();
+            }),
+            // ovserve changes to the add-speaker form
             this.addSpeakerForm.valueChanges.subscribe(formResult => {
                 // resetting a form triggers a form.next(null) - check if user_id
                 if (formResult && formResult.user_id) {
                     this.addNewSpeaker(formResult.user_id);
                 }
-            })
-        );
-        this.subscriptions.push(
+            }),
+            // observe changes to the viewport
+            this.viewport.isMobileSubject.subscribe(isMobile => this.checkSortMode(isMobile)),
+            // observe changes the agenda_present_speakers_only config
             this.config.get('agenda_present_speakers_only').subscribe(() => {
                 this.filterUsers();
+            }),
+            // observe changes to the agenda_show_first_contribution config
+            this.config.get<boolean>('agenda_show_first_contribution').subscribe(show => {
+                this.showFistContributionHint = show;
             })
         );
     }
 
     public opCanManage(): boolean {
-        return this.operator.hasPerms('agenda.can_manage_list_of_speakers');
+        return this.operator.hasPerms(Permission.agendaCanManageListOfSpeakers);
     }
 
     /**
@@ -234,7 +254,7 @@ export class ListOfSpeakersComponent extends BaseViewComponent implements OnInit
             .getListOfSpeakersObservable(referenceProjector)
             .subscribe(listOfSpeakers => {
                 if (listOfSpeakers) {
-                    this.setListOfSpeakersId(listOfSpeakers.id);
+                    this.setListOfSpeakers(listOfSpeakers);
                 }
             });
         this.subscriptions.push(this.projectorSubscription);
@@ -259,28 +279,32 @@ export class ListOfSpeakersComponent extends BaseViewComponent implements OnInit
 
         this.closSubscription = this.listOfSpeakersRepo.getViewModelObservable(id).subscribe(listOfSpeakers => {
             if (listOfSpeakers) {
-                const title = this.isCurrentListOfSpeakers
-                    ? 'Current list of speakers'
-                    : listOfSpeakers.getTitle() + ` - ${this.translate.instant('List of speakers')}`;
-                super.setTitle(title);
-                this.viewListOfSpeakers = listOfSpeakers;
-                const allSpeakers = this.viewListOfSpeakers.speakers.sort((a, b) => a.weight - b.weight);
-                this.speakers = allSpeakers.filter(speaker => speaker.state === SpeakerState.WAITING);
-                // Since the speaker repository is not a normal repository, sorting cannot be handled there
-                this.speakers.sort((a: ViewSpeaker, b: ViewSpeaker) => a.weight - b.weight);
-                this.filterUsers();
-                this.finishedSpeakers = allSpeakers.filter(speaker => speaker.state === SpeakerState.FINISHED);
-
-                // convert begin time to date and sort
-                this.finishedSpeakers.sort((a: ViewSpeaker, b: ViewSpeaker) => {
-                    const aTime = new Date(a.begin_time).getTime();
-                    const bTime = new Date(b.begin_time).getTime();
-                    return aTime - bTime;
-                });
-
-                this.activeSpeaker = allSpeakers.find(speaker => speaker.state === SpeakerState.CURRENT);
+                this.setListOfSpeakers(listOfSpeakers);
             }
         });
+    }
+
+    private setListOfSpeakers(listOfSpeakers: ViewListOfSpeakers): void {
+        const title = this.isCurrentListOfSpeakers
+            ? 'Current list of speakers'
+            : listOfSpeakers.getTitle() + ` - ${this.translate.instant('List of speakers')}`;
+        super.setTitle(title);
+        this.viewListOfSpeakers = listOfSpeakers;
+        const allSpeakers = this.viewListOfSpeakers.speakers.sort((a, b) => a.weight - b.weight);
+        this.speakers = allSpeakers.filter(speaker => speaker.state === SpeakerState.WAITING);
+        // Since the speaker repository is not a normal repository, sorting cannot be handled there
+        this.speakers.sort((a: ViewSpeaker, b: ViewSpeaker) => a.weight - b.weight);
+        this.filterUsers();
+        this.finishedSpeakers = allSpeakers.filter(speaker => speaker.state === SpeakerState.FINISHED);
+
+        // convert begin time to date and sort
+        this.finishedSpeakers.sort((a: ViewSpeaker, b: ViewSpeaker) => {
+            const aTime = new Date(a.begin_time).getTime();
+            const bTime = new Date(b.begin_time).getTime();
+            return aTime - bTime;
+        });
+
+        this.activeSpeaker = allSpeakers.find(speaker => speaker.state === SpeakerState.CURRENT);
     }
 
     /**
@@ -306,17 +330,22 @@ export class ListOfSpeakersComponent extends BaseViewComponent implements OnInit
     }
 
     /**
-     * send the current order of the sorting list to the server
+     * Saves sorting on mobile devices.
      */
-    public onSaveSorting(): void {
-        if (this.isSortMode) {
-            this.isSortMode = false;
-            this.listOfSpeakersRepo
-                .sortSpeakers(
-                    this.viewListOfSpeakers,
-                    this.listElement.sortedItems.map(el => el.id)
-                )
-                .catch(this.raiseError);
+    public onMobileSaveSorting(): void {
+        this.onSaveSorting(this.speakerListAsSelectable);
+        this.isSortMode = false;
+    }
+
+    /**
+     * Receives an updated list from sorting-event.
+     *
+     * @param sortedSpeakerList The updated list.
+     */
+    public onSortingChanged(sortedSpeakerList: Selectable[]): void {
+        this.speakerListAsSelectable = sortedSpeakerList;
+        if (!this.isMobile) {
+            this.onSaveSorting(sortedSpeakerList);
         }
     }
 
@@ -416,6 +445,15 @@ export class ListOfSpeakersComponent extends BaseViewComponent implements OnInit
     }
 
     /**
+     * Returns true if the speaker did never appear on any list of speakers
+     *
+     * @param speaker
+     */
+    public isFirstContribution(speaker: ViewSpeaker): boolean {
+        return this.listOfSpeakersRepo.isFirstContribution(speaker);
+    }
+
+    /**
      * Closes the current list of speakers
      */
     public closeSpeakerList(): Promise<void> {
@@ -470,6 +508,16 @@ export class ListOfSpeakersComponent extends BaseViewComponent implements OnInit
     }
 
     /**
+     * Imports a new user by the given username.
+     *
+     * @param username The name of the new user.
+     */
+    public onCreateUser(username: string): void {
+        this.userRepository.createFromString(username).then(result => {
+            this.addNewSpeaker(result.id);
+        });
+    }
+    /**
      * Triggers an update of the filter for the list of available potential speakers
      * (triggered on an update of users or config)
      */
@@ -481,5 +529,31 @@ export class ListOfSpeakersComponent extends BaseViewComponent implements OnInit
         } else {
             this.filteredUsers.next(users.filter(u => !this.speakers.some(speaker => speaker.user_id === u.id)));
         }
+    }
+
+    /**
+     * send the current order of the sorting list to the server
+     *
+     * @param sortedSpeakerList The list to save.
+     */
+    private onSaveSorting(sortedSpeakerList: Selectable[]): void {
+        if (this.isSortMode) {
+            this.listOfSpeakersRepo
+                .sortSpeakers(
+                    this.viewListOfSpeakers,
+                    sortedSpeakerList.map(el => el.id)
+                )
+                .catch(this.raiseError);
+        }
+    }
+
+    /**
+     * Check, that the sorting mode is immediately active, if not in mobile-view.
+     *
+     * @param isMobile If currently a mobile device is used.
+     */
+    private checkSortMode(isMobile: boolean): void {
+        this.isMobile = isMobile;
+        this.isSortMode = !isMobile;
     }
 }

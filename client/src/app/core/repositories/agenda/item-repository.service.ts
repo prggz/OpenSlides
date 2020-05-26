@@ -14,11 +14,13 @@ import { Identifiable } from 'app/shared/models/base/identifiable';
 import { ItemTitleInformation, ViewItem } from 'app/site/agenda/models/view-item';
 import { ViewAssignment } from 'app/site/assignments/models/view-assignment';
 import {
+    AgendaListTitle,
     BaseViewModelWithAgendaItem,
     isBaseViewModelWithAgendaItem
 } from 'app/site/base/base-view-model-with-agenda-item';
 import { ViewMotion } from 'app/site/motions/models/view-motion';
 import { ViewMotionBlock } from 'app/site/motions/models/view-motion-block';
+import { ViewTag } from 'app/site/tags/models/view-tag';
 import { ViewTopic } from 'app/site/topics/models/view-topic';
 import { BaseHasContentObjectRepository } from '../base-has-content-object-repository';
 import { BaseIsAgendaItemContentObjectRepository } from '../base-is-agenda-item-content-object-repository';
@@ -33,6 +35,12 @@ const ItemRelations: RelationDefinition[] = [
         VForeignVerbose: 'BaseViewModelWithAgendaItem',
         ownContentObjectDataKey: 'contentObjectData',
         ownKey: 'contentObject'
+    },
+    {
+        type: 'M2M',
+        ownIdKey: 'tags_id',
+        ownKey: 'tags',
+        foreignViewModel: ViewTag
     }
 ];
 
@@ -79,7 +87,7 @@ export class ItemRepositoryService extends BaseHasContentObjectRepository<
         return this.translate.instant(plural ? 'Items' : 'Item');
     };
 
-    public getTitle = (titleInformation: ItemTitleInformation) => {
+    private getAgendaTitle(titleInformation: ItemTitleInformation): AgendaListTitle {
         if (titleInformation.contentObject) {
             return titleInformation.contentObject.getAgendaListTitle();
         } else {
@@ -88,36 +96,14 @@ export class ItemRepositoryService extends BaseHasContentObjectRepository<
             ) as BaseIsAgendaItemContentObjectRepository<any, any, any>;
             return repo.getAgendaListTitle(titleInformation.title_information);
         }
+    }
+
+    public getTitle = (titleInformation: ItemTitleInformation) => {
+        return this.getAgendaTitle(titleInformation).title;
     };
 
-    /**
-     * Overrides the base function, if implemented.
-     *
-     * @returns An optional subtitle as `string`. Defaults to `null`.
-     */
-    public getSubtitle = (viewItem: ViewItem) => {
-        if (viewItem.contentObject) {
-            return viewItem.contentObject.getAgendaSubtitle();
-        } else {
-            // The subtitle is not present in the title_information yet.
-            return null;
-        }
-    };
-
-    /**
-     * Overrides the base function.
-     *
-     * @returns The title without any prefix like item number.
-     */
-    public getTitleWithoutItemNumber = (titleInformation: ItemTitleInformation) => {
-        if (titleInformation.contentObject) {
-            return titleInformation.contentObject.getAgendaListTitleWithoutItemNumber();
-        } else {
-            const repo = this.collectionStringMapperService.getRepository(
-                titleInformation.contentObjectData.collection
-            ) as BaseIsAgendaItemContentObjectRepository<any, any, any>;
-            return repo.getAgendaListTitleWithoutItemNumber(titleInformation.title_information);
-        }
+    public getSubtitle = (titleInformation: ItemTitleInformation) => {
+        return this.getAgendaTitle(titleInformation).subtitle;
     };
 
     /**

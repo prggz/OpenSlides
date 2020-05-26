@@ -34,6 +34,25 @@ def get_config_variables():
         group="Participants",
     )
 
+    yield ConfigVariable(
+        name="users_allow_self_set_present",
+        default_value=False,
+        input_type="boolean",
+        label="Allow users to set themselves as present",
+        help_text="e.g. for online meetings",
+        weight=512,
+        group="Participants",
+    )
+
+    yield ConfigVariable(
+        name="users_activate_vote_weight",
+        default_value=False,
+        input_type="boolean",
+        label="Activate vote weight",
+        weight=513,
+        group="Participants",
+    )
+
     # PDF
 
     yield ConfigVariable(
@@ -106,7 +125,7 @@ def get_config_variables():
 
     yield ConfigVariable(
         name="users_email_sender",
-        default_value="",
+        default_value="OpenSlides",
         input_type="string",
         label="Sender name",
         help_text="The sender address is defined in the OpenSlides server settings and should modified by administrator only.",
@@ -142,7 +161,7 @@ def get_config_variables():
             """\
             Dear {name},
 
-            this is your OpenSlides login for the event {event_name}:
+            this is your personal OpenSlides login:
 
                 {url}
                 username: {username}

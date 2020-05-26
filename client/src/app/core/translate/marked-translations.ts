@@ -1,4 +1,4 @@
-import { _ } from 'app/core/translate/translation-marker';
+import { marker as _ } from '@biesbjerg/ngx-translate-extract-marker';
 
 /**
  * Add strings here that require translations but have never been declared
@@ -30,6 +30,9 @@ _('Front page text');
 _('[Space for your welcome text.]');
 _('System');
 _('Allow access for anonymous guest users');
+_('Show audio conference window');
+_('Connect all users to audio conference automatically');
+_('Server settings required to activate Jitsi Meet integration.');
 _('Show this text on the login page');
 _('OpenSlides Theme');
 _('Export');
@@ -58,6 +61,13 @@ _('PDF footer logo (left)');
 _('PDF footer logo (right)');
 _('Web interface header logo');
 _('PDF ballot paper logo');
+_('Foreground color');
+_('Background color');
+_('Header background color');
+_('Header font color');
+_('Headline color');
+_('Chyron background color');
+_('Chyron font color');
 
 // Agenda config strings
 _('Enable numbering for agenda items');
@@ -86,7 +96,8 @@ _('Enter duration in seconds. Choose 0 to disable warning color.');
 _('Hide the amount of speakers in subtitle of list of speakers slide');
 _('Couple countdown with the list of speakers');
 _('[Begin speech] starts the countdown, [End speech] stops the countdown.');
-_('Only present participants can be added to the list of speakers'), _('Agenda visibility');
+_('Only present participants can be added to the list of speakers');
+_('Show hint »first speech« in the list of speakers management view');
 _('Default visibility for new agenda items (except topics)');
 _('public');
 _('internal');
@@ -99,7 +110,8 @@ _('Only main agenda items');
 _('Topics');
 _('Open requests to speak');
 
-// Motions config strings
+// ** Motions **
+// config strings
 // subgroup general
 _('General');
 _('Workflow of new motions');
@@ -155,7 +167,8 @@ _('Choose 0 to disable the supporting system.');
 _('Remove all supporters of a motion if a submitter edits his motion in early state');
 // subgroup Voting and ballot papers
 _('Voting and ballot papers');
-_('The 100 % base of a voting result consists of');
+_('Default voting type');
+_('Default 100 % base of a voting result');
 _('Yes/No/Abstain');
 _('Yes/No');
 _('All valid ballots');
@@ -176,12 +189,8 @@ _('Custom number of ballot papers');
 _('PDF export');
 _('Title for PDF documents of motions');
 _('Preamble text for PDF documents of motions');
-_('Show submitters and recommendation in table of contents');
+_('Show submitters and recommendation/state in table of contents');
 _('Show checkbox to record decision');
-// misc motion strings
-_('Amendment');
-_('Statute amendment for');
-_('Statute paragraphs');
 
 // motion workflow 1
 _('Simple Workflow');
@@ -224,46 +233,7 @@ _('Needs review');
 _('rejected (not authorized)');
 _('Reject (not authorized)');
 _('Rejection (not authorized)');
-// misc for motions
-_('Called');
-_('Called with');
-_('Recommendation');
-_('Motion block');
-_('The text field may not be blank.');
-_('The reason field may not be blank.');
-
-// Assignment config strings
-_('Election method');
-_('Automatic assign of method');
-_('Always one option per candidate');
-_('Always Yes-No-Abstain per candidate');
-_('Always Yes/No per candidate');
-_('Elections');
-_('Ballot and ballot papers');
-_('The 100-%-base of an election result consists of');
-_(
-    'For Yes/No/Abstain per candidate and Yes/No per candidate the 100-%-base depends on the election method: If there is only one option per candidate, the sum of all votes of all candidates is 100 %. Otherwise for each candidate the sum of all votes is 100 %.'
-);
-_('Yes/No/Abstain per candidate');
-_('Yes/No per candidate');
-_('All valid ballots');
-_('All casted ballots');
-_('Disabled (no percents)');
-_('Number of ballot papers (selection)');
-_('Number of all delegates');
-_('Number of all participants');
-_('Use the following custom number');
-_('Custom number of ballot papers');
-_('Required majority');
-_('Default method to check whether a candidate has reached the required majority.');
-_('Simple majority');
-_('Two-thirds majority');
-_('Three-quarters majority');
-_('Disabled');
-_('Put all candidates on the list of speakers');
-_('Title for PDF document (all elections)');
-_('Preamble text for PDF document (all elections)');
-// motion workflow
+// motion workflow manager
 _('Recommendation label');
 _('Allow support');
 _('Allow create poll');
@@ -275,11 +245,62 @@ _('Show amendment in parent motion');
 _('Restrictions');
 _('Label color');
 _('Next states');
+// misc for motions
+_('Amendment');
+_('Statute amendment for');
+_('Statute paragraphs');
+_('Called');
+_('Called with');
+_('Recommendation');
+_('Motion block');
+_('The text field may not be blank.');
+_('The reason field may not be blank.');
 
-// other translations
+// ** Assignments **
+// Assignment config strings
+_('Elections');
+// subgroup ballot
+_('Default election method');
+_('Default 100 % base of an election result');
+_('All valid ballots');
+_('All casted ballots');
+_('Disabled (no percents)');
+_('Default groups with voting rights');
+_('Sort election results by amount of votes');
+_('Put all candidates on the list of speakers');
+// subgroup ballot papers
+_('Ballot papers');
+_('Number of ballot papers');
+_('Number of all delegates');
+_('Number of all participants');
+_('Use the following custom number');
+_('Custom number of ballot papers');
+_('Required majority');
+_('Default method to check whether a candidate has reached the required majority.');
+_('Simple majority');
+_('Two-thirds majority');
+_('Three-quarters majority');
+_('Disabled');
+_('Title for PDF document (all elections)');
+_('Preamble text for PDF document (all elections)');
+// misc for assignments
 _('Searching for candidates');
-_('Voting');
 _('Finished');
+_('In the election process');
+
+// Voting strings
+_('Voting type');
+_('analog');
+_('nominal');
+_('non-nominal');
+_('Start voting');
+_('Stop voting');
+_('Publish');
+_('Entitled to vote');
+_('Voting method');
+_('Amount of votes');
+_('Motion votes');
+_('Ballots');
 
 // ** Users **
 // permission strings (see models.py of each Django app)
@@ -318,6 +339,8 @@ _('Can see comments');
 _('Can manage comments');
 _('Can manage motion metadata');
 _('Can create amendments');
+_('Can manage motion polls');
+
 // users
 _('Can see names of users');
 _('Can see extra data of users (e.g. present and comment)');
@@ -328,6 +351,9 @@ _('Can change its own password');
 _('General');
 _('Sort name of participants by');
 _('Enable participant presence view');
+_('Activate vote weight');
+_('Allow users to set themselves as present');
+_('e.g. for online meetings');
 _('Participants');
 _('Given name');
 _('Surname');
@@ -356,7 +382,7 @@ _('OpenSlides access data');
 _('You can use {event_name} and {username} as placeholder.');
 _('Email body');
 _(
-    'Dear {name},\n\nthis is your OpenSlides login for the event {event_name}:\n\n    {url}\n    username: {username}\n    password: {password}\n\nThis email was generated automatically.'
+    'Dear {name},\n\nthis is your personal OpenSlides login:\n\n    {url}\n    username: {username}\n    password: {password}\n\nThis email was generated automatically.'
 );
 _('Use these placeholders: {name}, {event_name}, {url}, {username}, {password}. The url referrs to the system url.');
 _(
@@ -396,3 +422,18 @@ _('Motion change recommendation deleted');
 // core misc strings
 _('items per page');
 _('Tag');
+
+// strings which are not extracted as translateable strings from client code
+_('Foreground color');
+_('Background color');
+_('Header background color');
+_('Header font color');
+_('Headline color');
+_('Chyron background color');
+_('Chyron font color');
+_('Show full text');
+_('Hide more text');
+_('Show password');
+_('Hide password');
+_('result');
+_('results');

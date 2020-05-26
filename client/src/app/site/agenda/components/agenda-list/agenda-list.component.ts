@@ -1,22 +1,22 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 
+import { marker as _ } from '@biesbjerg/ngx-translate-extract-marker';
 import { TranslateService } from '@ngx-translate/core';
 import { PblColumnDefinition } from '@pebula/ngrid';
 
 import { AgendaCsvExportService } from '../../services/agenda-csv-export.service';
 import { AgendaFilterListService } from '../../services/agenda-filter-list.service';
 import { AgendaPdfService } from '../../services/agenda-pdf.service';
-import { OperatorService } from 'app/core/core-services/operator.service';
+import { OperatorService, Permission } from 'app/core/core-services/operator.service';
 import { StorageService } from 'app/core/core-services/storage.service';
 import { PdfDocumentService } from 'app/core/pdf-services/pdf-document.service';
 import { ItemRepositoryService } from 'app/core/repositories/agenda/item-repository.service';
 import { ListOfSpeakersRepositoryService } from 'app/core/repositories/agenda/list-of-speakers-repository.service';
 import { TopicRepositoryService } from 'app/core/repositories/topics/topic-repository.service';
-import { _ } from 'app/core/translate/translation-marker';
 import { ConfigService } from 'app/core/ui-services/config.service';
 import { DurationService } from 'app/core/ui-services/duration.service';
 import { PromptService } from 'app/core/ui-services/prompt.service';
@@ -36,6 +36,7 @@ import { ViewListOfSpeakers } from '../../models/view-list-of-speakers';
 @Component({
     selector: 'os-agenda-list',
     templateUrl: './agenda-list.component.html',
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrls: ['./agenda-list.component.scss']
 })
 export class AgendaListComponent extends BaseListViewComponent<ViewItem> implements OnInit {
@@ -55,7 +56,7 @@ export class AgendaListComponent extends BaseListViewComponent<ViewItem> impleme
      * @returns true if the operator can manage agenda items
      */
     public get canManage(): boolean {
-        return this.operator.hasPerms('agenda.can_manage');
+        return this.operator.hasPerms(Permission.agendaCanManage);
     }
 
     public itemListSlide: ProjectorElementBuildDeskriptor = {
@@ -91,7 +92,7 @@ export class AgendaListComponent extends BaseListViewComponent<ViewItem> impleme
     public restrictedColumns: ColumnRestriction[] = [
         {
             columnName: 'menu',
-            permission: 'agenda.can_manage'
+            permission: Permission.agendaCanManage
         }
     ];
 
@@ -340,5 +341,52 @@ export class AgendaListComponent extends BaseListViewComponent<ViewItem> impleme
         } else {
             return result;
         }
+    }
+
+    public async deleteAllSpeakersOfAllListsOfSpeakers(): Promise<void> {
+        const title = this.translate.instant('Are you sure you want to clear all speakers of all lists?');
+        const content = this.translate.instant('All lists of speakers will be cleared.');
+        if (await this.promptService.open(title, content)) {
+            this.listOfSpeakersRepo.deleteAllSpeakersOfAllListsOfSpeakers().catch(this.raiseError);
+        }
+    }
+
+    /**
+     * Duplicates a single selected item.
+     *
+     * @param item The item to duplicte.
+     */
+    public duplicateTopic(topic: ViewTopic): void {
+        this.topicRepo.duplicateTopic(topic);
+    }
+
+    /**
+     * Duplicates all selected items, that are topics.
+     *
+     * @param selectedItems All selected items.
+     */
+    public duplicateMultipleTopics(selectedItems: ViewItem[]): void {
+        for (const item of selectedItems) {
+            if (this.isTopic(item.contentObject)) {
+                this.duplicateTopic(item.contentObject);
+            }
+        }
+    }
+
+    /**
+     * Helper function to determine, if the given item is a `Topic`.
+     *
+     * @param item The selected item.
+     *
+     * @returns `true` if the given item's collection is equal to the `Topic.COLLECTIONSTRING`.
+     */
+    public isTopic(obj: any): obj is ViewTopic {
+        const topic = obj as ViewTopic;
+        return (
+            !!topic &&
+            topic.collectionString !== undefined &&
+            topic.collectionString === ViewTopic.COLLECTIONSTRING &&
+            !!topic.topic
+        );
     }
 }

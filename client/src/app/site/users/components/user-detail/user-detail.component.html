@@ -11,7 +11,7 @@
     <!-- Title -->
     <div class="title-slot">
         <h2>
-            <span *ngIf="newUser" translate>New participant</span>
+            <span *ngIf="newUser">{{ 'New participant' | translate }}</span>
             <span *ngIf="!newUser && user">{{ user.full_name }}</span>
         </h2>
     </div>
@@ -31,24 +31,24 @@
     <mat-menu #userExtraMenu="matMenu">
         <button mat-menu-item *ngIf="isAllowed('changePassword')" (click)="changePassword()">
             <mat-icon>security</mat-icon>
-            <span translate>Change password</span>
+            <span>{{ 'Change password' | translate }}</span>
         </button>
         <!-- invitation email -->
         <button mat-menu-item *ngIf="isAllowed('manage') && user && user.email" (click)="sendInvitationEmail()">
             <mat-icon>mail</mat-icon>
-            <span translate>Send invitation email</span>
+            <span>{{ 'Send invitation email' | translate }}</span>
         </button>
         <!-- PDF -->
         <button mat-menu-item *ngIf="isAllowed('manage')" (click)="onDownloadPdf()">
             <mat-icon>picture_as_pdf</mat-icon>
-            <span translate>PDF</span>
+            <span>{{ 'PDF' | translate }}</span>
         </button>
         <!-- delete button -->
         <div *ngIf="isAllowed('delete')">
             <mat-divider></mat-divider>
             <button mat-menu-item class="red-warning-text" (click)="deleteUserButton()">
                 <mat-icon>delete</mat-icon>
-                <span translate>Delete</span>
+                <span>{{ 'Delete' | translate }}</span>
             </button>
         </div>
     </mat-menu>
@@ -75,22 +75,12 @@
             </mat-form-field>
             <!-- First name -->
             <mat-form-field class="form37 distance force-min-with">
-                <input
-                    type="text"
-                    matInput
-                    placeholder="{{ 'Given name' | translate }}"
-                    formControlName="first_name"
-                />
+                <input type="text" matInput placeholder="{{ 'Given name' | translate }}" formControlName="first_name" />
             </mat-form-field>
 
             <!-- Last name -->
             <mat-form-field class="form37 force-min-with">
-                <input
-                    type="text"
-                    matInput
-                    placeholder="{{ 'Surname' | translate }}"
-                    formControlName="last_name"
-                />
+                <input type="text" matInput placeholder="{{ 'Surname' | translate }}" formControlName="last_name" />
             </mat-form-field>
         </div>
 
@@ -105,15 +95,15 @@
                     name="email"
                     formControlName="email"
                 />
-                <mat-error *ngIf="personalInfoForm.get('email').hasError('email')" translate>
-                    Please enter a valid email address
+                <mat-error *ngIf="personalInfoForm.get('email').hasError('email')">
+                    {{ 'Please enter a valid email address' | translate }}
                 </mat-error>
             </mat-form-field>
 
             <!-- Gender -->
             <mat-form-field class="form25 force-min-with">
                 <mat-select placeholder="{{ 'Gender' | translate }}" formControlName="gender">
-                    <mat-option>-</mat-option>
+                    <mat-option value="">-</mat-option>
                     <mat-option *ngFor="let gender of genderList" [value]="gender">{{ gender | translate }}</mat-option>
                 </mat-select>
             </mat-form-field>
@@ -121,7 +111,13 @@
 
         <div>
             <!-- Strucuture Level -->
-            <mat-form-field class="form70 distance">
+            <mat-form-field
+                class="distance"
+                [ngClass]="{
+                    form37: showVoteWeight,
+                    form70: !showVoteWeight
+                }"
+            >
                 <input
                     type="text"
                     matInput
@@ -129,8 +125,15 @@
                     formControlName="structure_level"
                 />
             </mat-form-field>
+
             <!-- Participant Number -->
-            <mat-form-field class="form25 force-min-with">
+            <mat-form-field
+                [ngClass]="{
+                    distance: showVoteWeight,
+                    form37: showVoteWeight,
+                    form25: !showVoteWeight
+                }"
+            >
                 <input
                     type="text"
                     matInput
@@ -138,17 +141,29 @@
                     formControlName="number"
                 />
             </mat-form-field>
+
+            <!-- Vote weight -->
+            <mat-form-field class="form16 force-min-with" *ngIf="showVoteWeight">
+                <!-- TODO Input type should be number with limited decimal spaces -->
+                <input
+                    type="number"
+                    matInput
+                    placeholder="{{ 'Vote weight' | translate }}"
+                    formControlName="vote_weight"
+                />
+            </mat-form-field>
         </div>
 
         <div>
             <!-- Groups -->
-            <os-search-value-selector
-                ngDefaultControl
-                [formControl]="personalInfoForm.get('groups_id')"
-                [multiple]="true"
-                listname="{{ 'Groups' | translate }}"
-                [inputListValues]="groups"
-            ></os-search-value-selector>
+            <mat-form-field>
+                <os-search-value-selector
+                    formControlName="groups_id"
+                    [multiple]="true"
+                    placeholder="{{ 'Groups' | translate }}"
+                    [inputListValues]="groups"
+                ></os-search-value-selector>
+            </mat-form-field>
         </div>
 
         <div *ngIf="isAllowed('manage')">
@@ -177,31 +192,22 @@
         <!-- About me -->
         <div *ngIf="isAllowed('seePersonal')" class="spacer-bottom-20">
             <!-- The HTML Editor -->
-            <h4 translate>About me</h4>
+            <h4>{{ 'About me' | translate }}</h4>
             <editor formControlName="about_me" [init]="tinyMceSettings"></editor>
         </div>
 
         <div *ngIf="isAllowed('seePersonal')">
             <!-- username -->
             <mat-form-field>
-                <input
-                    type="text"
-                    matInput
-                    placeholder="{{ 'Username' | translate }}"
-                    formControlName="username"
-                />
+                <input type="text" matInput placeholder="{{ 'Username' | translate }}" formControlName="username" />
             </mat-form-field>
         </div>
 
         <div *ngIf="isAllowed('seeExtra')">
             <!-- Comment -->
             <mat-form-field>
-                <input
-                    matInput
-                    placeholder="{{ 'Comment' | translate }}"
-                    formControlName="comment"
-                />
-                <mat-hint translate>Only for internal notes.</mat-hint>
+                <input matInput placeholder="{{ 'Comment' | translate }}" formControlName="comment" />
+                <mat-hint>{{ 'Only for internal notes.' | translate }}</mat-hint>
             </mat-form-field>
         </div>
 
@@ -211,7 +217,7 @@
                 formControlName="is_present"
                 matTooltip="{{ 'Designates whether this user is in the room.' | translate }}"
             >
-                <span translate>Is present</span>
+                <span>{{ 'Is present' | translate }}</span>
             </mat-checkbox>
 
             <!-- Active? -->
@@ -223,7 +229,7 @@
                         | translate
                 }}"
             >
-                <span translate>Is active</span>
+                <span>{{ 'Is active' | translate }}</span>
             </mat-checkbox>
 
             <!-- Commitee? -->
@@ -231,7 +237,7 @@
                 formControlName="is_committee"
                 matTooltip="{{ 'Designates whether this user should be treated as a committee.' | translate }}"
             >
-                <span translate>Is a committee</span>
+                <span>{{ 'Is a committee' | translate }}</span>
             </mat-checkbox>
         </div>
     </form>
@@ -241,11 +247,13 @@
     <ng-container *ngIf="user">
         <!-- User name -->
         <div *ngIf="isAllowed('seeName')">
-            <h4 translate>Name</h4>
+            <h4>{{ 'Name' | translate }}</h4>
             <span class="state-icons">
                 <span>{{ user.short_name }}</span>
                 <mat-icon *ngIf="user.is_present" matTooltip="{{ 'Is present' | translate }}">check_box</mat-icon>
-                <mat-icon *ngIf="user.is_committee" matTooltip="{{ 'Is committee' | translate }}">account_balance</mat-icon>
+                <mat-icon *ngIf="user.is_committee" matTooltip="{{ 'Is committee' | translate }}"
+                    >account_balance</mat-icon
+                >
                 <mat-icon *ngIf="!user.is_active && isAllowed('seeExtra')" matTooltip="{{ 'Inactive' | translate }}"
                     >block</mat-icon
                 >
@@ -255,45 +263,51 @@
         <div *ngIf="isAllowed('seePersonal')">
             <!-- Mail -->
             <div *ngIf="user.email">
-                <h4 translate>Email</h4>
+                <h4>{{ 'Email' | translate }}</h4>
                 <span>{{ user.email }}</span>
             </div>
 
             <!-- Gender -->
             <div *ngIf="user.gender">
-                <h4 translate>Gender</h4>
+                <h4>{{ 'Gender' | translate }}</h4>
                 <span>{{ user.gender | translate }}</span>
             </div>
         </div>
 
         <!-- Structure Level -->
         <div *ngIf="user.structure_level">
-            <h4 translate>Structure level</h4>
+            <h4>{{ 'Structure level' | translate }}</h4>
             <span>{{ user.structure_level }}</span>
         </div>
 
         <!-- Participant number -->
         <div *ngIf="user.number">
-            <h4 translate>Participant number</h4>
+            <h4>{{ 'Participant number' | translate }}</h4>
             <span>{{ user.number }}</span>
         </div>
 
         <!-- Groups -->
         <div *ngIf="user.groups && user.groups.length > 0">
-            <h4 translate>Groups</h4>
+            <h4>{{ 'Groups' | translate }}</h4>
             <span *ngFor="let group of user.groups; let last = last">
                 {{ group.getTitle() | translate }}<span *ngIf="!last">,&nbsp;</span>
             </span>
         </div>
         <div *ngIf="!user.groups || user.groups.length === 0">
-            <h4 translate>Groups</h4>
-            <span translate>Default group</span>
+            <h4>{{ 'Groups' | translate }}</h4>
+            <span>{{ 'Default group' | translate }}</span>
         </div>
 
         <div *ngIf="isAllowed('manage')">
+            <!-- Vote weight -->
+            <div *ngIf="user.vote_weight && showVoteWeight">
+                <h4>{{ 'Vote weight' | translate }}</h4>
+                <span>{{ user.vote_weight }}</span>
+            </div>
+
             <!-- Initial Password -->
             <div *ngIf="user.default_password">
-                <h4 translate>Initial password</h4>
+                <h4>{{ 'Initial password' | translate }}</h4>
                 <span>{{ user.default_password }}</span>
             </div>
         </div>
@@ -301,13 +315,13 @@
         <div *ngIf="isAllowed('seePersonal')">
             <!-- About me -->
             <div *ngIf="user.about_me">
-                <h4 translate>About me</h4>
+                <h4>{{ 'About me' | translate }}</h4>
                 <div [innerHTML]="user.about_me | trust: 'html'"></div>
             </div>
 
             <!-- Username -->
             <div *ngIf="user.username">
-                <h4 translate>Username</h4>
+                <h4>{{ 'Username' | translate }}</h4>
                 <span>{{ user.username }}</span>
             </div>
         </div>
@@ -315,14 +329,14 @@
         <div *ngIf="isAllowed('seeExtra')">
             <!-- Comment -->
             <div *ngIf="user.comment">
-                <h4 translate>Comment</h4>
+                <h4>{{ 'Comment' | translate }}</h4>
                 <span>{{ user.comment }}</span>
             </div>
         </div>
 
         <div *ngIf="isAllowed('seePersonal') && user.isLastEmailSend">
             <div>
-                <h4 translate>Last email sent</h4>
+                <h4>{{ 'Last email sent' | translate }}</h4>
                 <span>{{ getEmailSentTime() }}</span>
             </div>
         </div>

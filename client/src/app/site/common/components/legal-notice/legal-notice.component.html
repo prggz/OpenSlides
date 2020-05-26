@@ -10,7 +10,7 @@
     (saveEvent)="saveChanges()"
 >
     <div class="title-slot">
-        <h2 translate>Legal notice</h2>
+        <h2>{{ 'Legal notice' | translate }}</h2>
     </div>
 </os-head-bar>
 
@@ -23,27 +23,25 @@
 <mat-card class="os-card">
     <div>
         <button type="button" mat-button (click)="resetCache()">
-            <span translate>Reset cache</span>
+            <span>{{ 'Reset cache' | translate }}</span>
         </button>
     </div>
 
     <div>
         <button type="button" mat-button (click)="checkForUpdate()">
-            <span translate>Check for updates</span>
-        </button>
-    </div>
-
-    <div *osIsSuperAdmin>
-        <button
-            type="button"
-            mat-button
-            (click)="initiateUpdateCheckForAllClients()"
-            matTooltip="{{ 'This will send an update notification to all active clients' | translate }}"
-        >
-            <span translate>Initiate update check for all clients</span>
-            <mat-icon class="warning spacer-left-10">warning</mat-icon>
+            <span>{{ 'Check for updates' | translate }}</span>
         </button>
     </div>
 </mat-card>
 
-<os-count-users></os-count-users>
+<mat-card class="os-card" *osPerms="'users.can_manage'">
+    <h2>{{ 'Statistics' | translate }}</h2>
+    <div>
+        <h3>{{ 'Active users' | translate }}</h3>
+        <os-count-users></os-count-users>
+    </div>
+    <div>
+        <h3>{{ 'Requests to speak' | translate }}</h3>
+        <os-user-statistics></os-user-statistics>
+    </div>
+</mat-card>

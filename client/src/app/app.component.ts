@@ -17,6 +17,7 @@ import { PrioritizeService } from './core/core-services/prioritize.service';
 import { RoutingStateService } from './core/ui-services/routing-state.service';
 import { ServertimeService } from './core/core-services/servertime.service';
 import { ThemeService } from './core/ui-services/theme.service';
+import { VotingBannerService } from './core/ui-services/voting-banner.service';
 
 declare global {
     /**
@@ -25,6 +26,12 @@ declare global {
      */
     interface Array<T> {
         flatMap(o: any): any[];
+        intersect(a: T[]): T[];
+        mapToObject(f: (item: T) => { [key: string]: any }): { [key: string]: any };
+    }
+
+    interface Set<T> {
+        equals(other: Set<T>): boolean;
     }
 
     /**
@@ -79,7 +86,8 @@ export class AppComponent {
         dataStoreUpgradeService: DataStoreUpgradeService, // to start it.
         prioritizeService: PrioritizeService,
         pingService: PingService,
-        routingState: RoutingStateService
+        routingState: RoutingStateService,
+        votingBannerService: VotingBannerService // needed for initialisation
     ) {
         // manually add the supported languages
         translate.addLangs(['en', 'de', 'cs', 'ru']);
@@ -91,8 +99,8 @@ export class AppComponent {
         translate.use(translate.getLangs().includes(browserLang) ? browserLang : 'en');
 
         // change default JS functions
-        this.overloadArrayToString();
-        this.overloadFlatMap();
+        this.overloadArrayFunctions();
+        this.overloadSetFunctions();
         this.overloadModulo();
 
         // Wait until the App reaches a stable state.
@@ -106,45 +114,84 @@ export class AppComponent {
             .subscribe(() => servertimeService.startScheduler());
     }
 
-    /**
-     * Function to alter the normal Array.toString - function
-     *
-     * Will add a whitespace after a comma and shorten the output to
-     * three strings.
-     *
-     * TODO: There might be a better place for overloading functions than app.component
-     * TODO: Overloading can be extended to more functions.
-     */
-    private overloadArrayToString(): void {
-        Array.prototype.toString = function(): string {
-            let string = '';
-            const iterations = Math.min(this.length, 3);
+    private overloadArrayFunctions(): void {
+        Object.defineProperty(Array.prototype, 'toString', {
+            value: function (): string {
+                let string = '';
+                const iterations = Math.min(this.length, 3);
 
-            for (let i = 0; i <= iterations; i++) {
-                if (i < iterations) {
-                    string += this[i];
-                }
+                for (let i = 0; i <= iterations; i++) {
+                    if (i < iterations) {
+                        string += this[i];
+                    }
 
-                if (i < iterations - 1) {
-                    string += ', ';
-                } else if (i === iterations && this.length > iterations) {
-                    string += ', ...';
+                    if (i < iterations - 1) {
+                        string += ', ';
+                    } else if (i === iterations && this.length > iterations) {
+                        string += ', ...';
+                    }
                 }
-            }
-            return string;
-        };
+                return string;
+            },
+            enumerable: false
+        });
+
+        Object.defineProperty(Array.prototype, 'flatMap', {
+            value: function (o: any): any[] {
+                const concatFunction = (x: any, y: any[]) => x.concat(y);
+                const flatMapLogic = (f: any, xs: any) => xs.map(f).reduce(concatFunction, []);
+                return flatMapLogic(o, this);
+            },
+            enumerable: false
+        });
+
+        Object.defineProperty(Array.prototype, 'intersect', {
+            value: function <T>(other: T[]): T[] {
+                let a = this;
+                let b = other;
+                // indexOf to loop over shorter
+                if (b.length > a.length) {
+                    [a, b] = [b, a];
+                }
+                return a.filter(e => b.indexOf(e) > -1);
+            },
+            enumerable: false
+        });
+
+        Object.defineProperty(Array.prototype, 'mapToObject', {
+            value: function <T>(f: (item: T) => { [key: string]: any }): { [key: string]: any } {
+                return this.reduce((aggr, item) => {
+                    const res = f(item);
+                    for (const key in res) {
+                        if (res.hasOwnProperty(key)) {
+                            aggr[key] = res[key];
+                        }
+                    }
+                    return aggr;
+                }, {});
+            },
+            enumerable: false
+        });
     }
 
     /**
-     * Adds an implementation of flatMap.
-     * TODO: Remove once flatMap made its way into official JS/TS (ES 2019?)
+     * Adds some functions to Set.
      */
-    private overloadFlatMap(): void {
-        const concat = (x: any, y: any) => x.concat(y);
-        const flatMap = (f: any, xs: any) => xs.map(f).reduce(concat, []);
-        Array.prototype.flatMap = function(f: any): any[] {
-            return flatMap(f, this);
-        };
+    private overloadSetFunctions(): void {
+        Object.defineProperty(Set.prototype, 'equals', {
+            value: function <T>(other: Set<T>): boolean {
+                const difference = new Set(this);
+                for (const elem of other) {
+                    if (difference.has(elem)) {
+                        difference.delete(elem);
+                    } else {
+                        return false;
+                    }
+                }
+                return !difference.size;
+            },
+            enumerable: false
+        });
     }
 
     /**
@@ -152,8 +199,11 @@ export class AppComponent {
      * TODO: Remove this, if the remainder operation is changed to modulo.
      */
     private overloadModulo(): void {
-        Number.prototype.modulo = function(n: number): number {
-            return ((this % n) + n) % n;
-        };
+        Object.defineProperty(Number.prototype, 'modulo', {
+            value: function (n: number): number {
+                return ((this % n) + n) % n;
+            },
+            enumerable: false
+        });
     }
 }

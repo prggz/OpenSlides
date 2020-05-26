@@ -8,13 +8,15 @@ import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject } from 'rxjs';
 
 import { ConstantsService } from 'app/core/core-services/constants.service';
-import { OperatorService } from 'app/core/core-services/operator.service';
+import { OperatorService, Permission } from 'app/core/core-services/operator.service';
 import { GroupRepositoryService } from 'app/core/repositories/users/group-repository.service';
 import { UserRepositoryService } from 'app/core/repositories/users/user-repository.service';
+import { ConfigService } from 'app/core/ui-services/config.service';
 import { PromptService } from 'app/core/ui-services/prompt.service';
 import { genders } from 'app/shared/models/users/user';
 import { OneOfValidator } from 'app/shared/validators/one-of-validator';
 import { BaseViewComponent } from 'app/site/base/base-view';
+import { PollService } from 'app/site/polls/services/poll.service';
 import { UserPdfExportService } from '../../services/user-pdf-export.service';
 import { ViewGroup } from '../../models/view-group';
 import { ViewUser } from '../../models/view-user';
@@ -76,6 +78,12 @@ export class UserDetailComponent extends BaseViewComponent implements OnInit {
 
     private userBackends: UserBackends | null = null;
 
+    private isVoteWeightActive: boolean;
+
+    public get showVoteWeight(): boolean {
+        return this.pollService.isElectronicVotingEnabled && this.isVoteWeightActive;
+    }
+
     /**
      * Constructor for user
      *
@@ -103,16 +111,19 @@ export class UserDetailComponent extends BaseViewComponent implements OnInit {
         private promptService: PromptService,
         private pdfService: UserPdfExportService,
         private groupRepo: GroupRepositoryService,
-        private constantsService: ConstantsService
+        private constantsService: ConstantsService,
+        private pollService: PollService,
+        configService: ConfigService
     ) {
         super(title, translate, matSnackBar);
         this.createForm();
 
         this.constantsService.get<UserBackends>('UserBackends').subscribe(backends => (this.userBackends = backends));
+        configService
+            .get<boolean>('users_activate_vote_weight')
+            .subscribe(active => (this.isVoteWeightActive = active));
 
-        this.groupRepo
-            .getViewModelListObservable()
-            .subscribe(groups => this.groups.next(groups.filter(group => group.id !== 1)));
+        this.groupRepo.getViewModelListObservableWithoutDefaultGroup().subscribe(this.groups);
     }
 
     /**
@@ -159,6 +170,7 @@ export class UserDetailComponent extends BaseViewComponent implements OnInit {
                 gender: [''],
                 structure_level: [''],
                 number: [''],
+                vote_weight: [],
                 about_me: [''],
                 groups_id: [''],
                 is_present: [true],
@@ -194,23 +206,25 @@ export class UserDetailComponent extends BaseViewComponent implements OnInit {
     public isAllowed(action: string): boolean {
         switch (action) {
             case 'delete':
-                return this.operator.hasPerms('users.can_manage') && !this.ownPage;
+                return this.operator.hasPerms(Permission.usersCanManage) && !this.ownPage;
             case 'manage':
-                return this.operator.hasPerms('users.can_manage');
+                return this.operator.hasPerms(Permission.usersCanManage);
             case 'seeName':
-                return this.operator.hasPerms('users.can_see_name', 'users.can_manage') || this.ownPage;
+                return this.operator.hasPerms(Permission.usersCanSeeName, Permission.usersCanManage) || this.ownPage;
             case 'seeOtherUsers':
-                return this.operator.hasPerms('users.can_see_name', 'users.can_manage');
+                return this.operator.hasPerms(Permission.usersCanSeeName, Permission.usersCanManage);
             case 'seeExtra':
-                return this.operator.hasPerms('users.can_see_extra_data', 'users.can_manage');
+                return this.operator.hasPerms(Permission.usersCanSeeExtraData, Permission.usersCanManage);
             case 'seePersonal':
-                return this.operator.hasPerms('users.can_see_extra_data', 'users.can_manage') || this.ownPage;
+                return (
+                    this.operator.hasPerms(Permission.usersCanSeeExtraData, Permission.usersCanManage) || this.ownPage
+                );
             case 'changePersonal':
-                return this.operator.hasPerms('users.can_manage') || this.ownPage;
+                return this.operator.hasPerms(Permission.usersCanManage) || this.ownPage;
             case 'changePassword':
                 return (
-                    (this.ownPage && this.operator.hasPerms('users.can_change_password')) ||
-                    this.operator.hasPerms('users.can_manage')
+                    (this.ownPage && this.operator.hasPerms(Permission.usersCanChangePassword)) ||
+                    this.operator.hasPerms(Permission.usersCanManage)
                 );
             default:
                 return false;

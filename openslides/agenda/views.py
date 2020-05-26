@@ -296,6 +296,7 @@ class ListOfSpeakersViewSet(
             "speak",
             "sort_speakers",
             "readd_last_speaker",
+            "delete_all_speakers",
         ):
             result = has_perm(
                 self.request.user, "agenda.can_see_list_of_speakers"
@@ -356,8 +357,7 @@ class ListOfSpeakersViewSet(
 
             # Send new speaker via autoupdate because users without permission
             # to see users may not have it but can get it now.
-            inform_changed_data([user])
-            # TODO: inform_changed_data(user) should work. But isinstance(user, Iterable) is true...
+            inform_changed_data(user, disable_history=True)
 
         # Toggle 'marked' for the speaker
         elif request.method == "PATCH":
@@ -554,4 +554,10 @@ class ListOfSpeakersViewSet(
         last_speaker.weight = new_weight
         last_speaker.save()
 
+        return Response()
+
+    @list_route(methods=["post"])
+    def delete_all_speakers(self, request):
+        Speaker.objects.all().delete()
+        inform_changed_data(ListOfSpeakers.objects.all())
         return Response()

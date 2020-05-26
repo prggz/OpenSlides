@@ -32,7 +32,7 @@ from ..utils.auth import (
     anonymous_is_enabled,
     has_perm,
 )
-from ..utils.autoupdate import Element, inform_changed_data, inform_changed_elements
+from ..utils.autoupdate import AutoupdateElement, inform_changed_data, inform_elements
 from ..utils.cache import element_cache
 from ..utils.rest_api import (
     ModelViewSet,
@@ -354,14 +354,16 @@ class UserViewSet(ModelViewSet):
         created_users = []
         # List of all track ids of all imported users. The track ids are just used in the client.
         imported_track_ids = []
+        errors = {}  # maps imported track ids to errors
 
         for user in users:
             serializer = self.get_serializer(data=user)
             try:
                 serializer.is_valid(raise_exception=True)
-            except ValidationError:
+            except ValidationError as e:
                 # Skip invalid users.
-
+                if "vote_weight" in e.detail and "importTrackId" in user:
+                    errors[user["importTrackId"]] = "vote_weight"
                 continue
             data = serializer.prepare_password(serializer.data)
             groups = data["groups_id"]
@@ -383,6 +385,7 @@ class UserViewSet(ModelViewSet):
         return Response(
             {
                 "detail": "{0} users successfully imported.",
+                "errors": errors,
                 "args": [len(created_users)],
                 "importedTrackIds": imported_track_ids,
             }
@@ -613,8 +616,7 @@ class GroupViewSet(ModelViewSet):
         """
         Updates every users, if some permission changes. For this, every affected collection
         is fetched via the permission_change signal and every object of the collection passed
-        into the cache/autoupdate system. Also the personal (restrcited) cache of every affected
-        user (all users of the group) will be deleted, so it is rebuild after this permission change.
+        into the cache/autoupdate system.
         """
         if isinstance(changed_permissions, Permission):
             changed_permissions = [changed_permissions]
@@ -622,7 +624,7 @@ class GroupViewSet(ModelViewSet):
         if not changed_permissions:
             return  # either None or empty list.
 
-        elements: List[Element] = []
+        elements: List[AutoupdateElement] = []
         signal_results = permission_change.send(None, permissions=changed_permissions)
         all_full_data = async_to_sync(element_cache.get_all_data_list)()
         for _, signal_collections in signal_results:
@@ -631,14 +633,14 @@ class GroupViewSet(ModelViewSet):
                     cachable.get_collection_string(), {}
                 ):
                     elements.append(
-                        Element(
+                        AutoupdateElement(
                             id=full_data["id"],
                             collection_string=cachable.get_collection_string(),
                             full_data=full_data,
                             disable_history=True,
                         )
                     )
-        inform_changed_elements(elements)
+        inform_elements(elements)
 
 
 class PersonalNoteViewSet(ModelViewSet):
@@ -718,6 +720,23 @@ class PersonalNoteViewSet(ModelViewSet):
 
 
 # Special API views
+
+
+class SetPresenceView(APIView):
+    http_method_names = ["post"]
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        if not config["users_allow_self_set_present"] or not user.is_authenticated:
+            raise ValidationError({"detail": "You cannot set your own presence"})
+
+        present = request.data
+        if present not in (True, False):
+            raise ValidationError({"detail": "Data must be a boolean"})
+
+        user.is_present = present
+        user.save()
+        return Response()
 
 
 class WhoAmIDataView(APIView):
@@ -803,7 +822,7 @@ class UserLoginView(WhoAmIDataView):
                     user = User.objects.get(username="admin")
                     if user.check_password("admin"):
                         context["login_info_text"] = (
-                            f"Use <strong>admin</strong> and <strong>admin</strong> for your first login.<br>"
+                            "Use <strong>admin</strong> and <strong>admin</strong> for your first login.<br>"
                             "Please change your password to hide this message!"
                         )
                 except User.DoesNotExist:

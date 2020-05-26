@@ -1,8 +1,11 @@
 import { Injectable } from '@angular/core';
 
 import { TranslateService } from '@ngx-translate/core';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 import { HttpService } from 'app/core/core-services/http.service';
+import { Permission } from 'app/core/core-services/operator.service';
 import { RelationManagerService } from 'app/core/core-services/relation-manager.service';
 import { ViewModelStoreService } from 'app/core/core-services/view-model-store.service';
 import { Group } from 'app/shared/models/users/group';
@@ -16,9 +19,9 @@ import { DataStoreService } from '../../core-services/data-store.service';
 /**
  * Shape of a permission
  */
-interface Permission {
+interface PermDefinition {
     display_name: string;
-    value: string;
+    value: Permission;
 }
 
 /**
@@ -26,7 +29,7 @@ interface Permission {
  */
 export interface AppPermissions {
     name: string;
-    permissions: Permission[];
+    permissions: PermDefinition[];
 }
 
 /**
@@ -72,13 +75,20 @@ export class GroupRepositoryService extends BaseRepository<ViewGroup, Group, Gro
         return this.translate.instant(plural ? 'Groups' : 'Group');
     };
 
+    public getNameForIds(...ids: number[]): string {
+        return this.getSortedViewModelList()
+            .filter(group => ids.includes(group.id))
+            .map(group => this.translate.instant(group.getTitle()))
+            .join(', ');
+    }
+
     /**
      * Toggles the given permisson.
      *
      * @param group The group
      * @param perm The permission to toggle
      */
-    public async togglePerm(group: ViewGroup, perm: string): Promise<void> {
+    public async togglePerm(group: ViewGroup, perm: Permission): Promise<void> {
         const set = !group.permissions.includes(perm);
         return await this.http.post(`/rest/${group.collectionString}/${group.id}/set_permission/`, {
             perm: perm,
@@ -93,7 +103,7 @@ export class GroupRepositoryService extends BaseRepository<ViewGroup, Group, Gro
      * @param perm certain permission as string
      * @param appName Indicates the header in the Permission Matrix
      */
-    private addAppPerm(appId: number, perm: Permission, appName: string): void {
+    private addAppPerm(appId: number, perm: PermDefinition, appName: string): void {
         if (!this.appPermissions[appId]) {
             this.appPermissions[appId] = {
                 name: appName,
@@ -186,5 +196,13 @@ export class GroupRepositoryService extends BaseRepository<ViewGroup, Group, Gro
                 app.permissions = see.concat(manage.concat(others));
             }
         });
+    }
+
+    /**
+     * Returns an Observable for all groups except the default group.
+     */
+    public getViewModelListObservableWithoutDefaultGroup(): Observable<ViewGroup[]> {
+        // since groups are sorted by id, default is always the first entry
+        return this.getViewModelListObservable().pipe(map(groups => groups.slice(1)));
     }
 }

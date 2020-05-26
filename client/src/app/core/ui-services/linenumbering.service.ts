@@ -4,6 +4,11 @@ const ELEMENT_NODE = 1;
 const TEXT_NODE = 3;
 
 /**
+ * A helper to indicate that certain functions expect the provided HTML strings to contain line numbers
+ */
+export type LineNumberedString = string;
+
+/**
  * Specifies a point within a HTML Text Node where a line break might be possible, if the following word
  * exceeds the maximum line length.
  */
@@ -29,7 +34,8 @@ export interface LineNumberRange {
     /**
      * The end line number.
      * HINT: As this object is usually referring to actual line numbers, not lines,
-     * the line starting by `to` is not included in the extracted content anymore, only the text between `from` and `to`.
+     * the line starting by `to` is not included in the extracted content anymore, only the text between
+     * `from` and `to`.
      */
     to: number;
 }
@@ -67,7 +73,9 @@ interface SectionHeading {
  *
  * Removing line numbers from a line-numbered string:
  * ```ts
- * const lineNumberedHtml = '<p><span class="os-line-number line-number-1" data-line-number="1" contenteditable="false">&nbsp;</span>Lorem ipsum dolorsit amet</p>';
+ * const lineNumberedHtml =
+ *   '<p><span class="os-line-number line-number-1" data-line-number="1" contenteditable="false">&nbsp;</span>
+ *    Lorem ipsum dolorsit amet</p>';
  * const originalHtml = this.lineNumbering.stripLineNumbers(inHtml);
  * ```
  *
@@ -118,7 +126,8 @@ export class LinenumberingService {
     // The line number counter
     private currentLineNumber: number = null;
 
-    // Indicates that we just entered a block element and we want to add a line number without line break at the beginning.
+    // Indicates that we just entered a block element and we want to add a line number without line break
+    // at the beginning.
     private prependLineNumberToFirstText = false;
 
     // A workaround to prevent double line numbers
@@ -890,7 +899,7 @@ export class LinenumberingService {
         highlight?: number,
         callback?: () => void,
         firstLine?: number
-    ): string {
+    ): LineNumberedString {
         let newHtml, newRoot;
 
         if (highlight > 0) {

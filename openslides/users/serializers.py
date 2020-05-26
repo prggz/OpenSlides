@@ -9,7 +9,7 @@ from ..utils.rest_api import (
     RelatedField,
     ValidationError,
 )
-from ..utils.validate import validate_html
+from ..utils.validate import validate_html_strict
 from .models import Group, PersonalNote, User
 
 
@@ -25,6 +25,7 @@ USERCANSEESERIALIZER_FIELDS = (
     "groups",
     "is_present",
     "is_committee",
+    "vote_weight",
 )
 
 
@@ -38,7 +39,7 @@ USERCANSEEEXTRASERIALIZER_FIELDS = USERCANSEESERIALIZER_FIELDS + (
 )
 
 
-class UserFullSerializer(ModelSerializer):
+class UserSerializer(ModelSerializer):
     """
     Serializer for users.models.User objects.
 
@@ -94,7 +95,7 @@ class UserFullSerializer(ModelSerializer):
 
         # check the about_me html
         if "about_me" in data:
-            data["about_me"] = validate_html(data["about_me"])
+            data["about_me"] = validate_html_strict(data["about_me"])
 
         return data
 

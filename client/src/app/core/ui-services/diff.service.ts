@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 
-import { LinenumberingService } from './linenumbering.service';
+import { LineNumberedString, LinenumberingService } from './linenumbering.service';
 import { ViewUnifiedChange } from '../../shared/models/motions/view-unified-change';
 
 const ELEMENT_NODE = 1;
@@ -25,7 +25,8 @@ export enum ModificationType {
 }
 
 /**
- * This data structure is used when determining the most specific common ancestor of two HTML nodes (`node1` and `node2`)
+ * This data structure is used when determining the most specific common ancestor of two HTML node
+ * (`node1` and `node2`)
  * within the same Document Fragment.
  */
 interface CommonAncestorData {
@@ -34,11 +35,13 @@ interface CommonAncestorData {
      */
     commonAncestor: Node;
     /**
-     * The nodes inbetween `commonAncestor` and the `node1` in the DOM hierarchy. Empty, if node1 is a direct descendant.
+     * The nodes inbetween `commonAncestor` and the `node1` in the DOM hierarchy.
+     * Empty, if node1 is a direct descendant.
      */
     trace1: Node[];
     /**
-     * The nodes inbetween `commonAncestor` and the `node2` in the DOM hierarchy. Empty, if node2 is a direct descendant.
+     * The nodes inbetween `commonAncestor` and the `node2` in the DOM hierarchy.
+     * Empty, if node2 is a direct descendant.
      */
     trace2: Node[];
     /**
@@ -109,7 +112,8 @@ export interface LineRange {
     /**
      * The end line number.
      * HINT: As this object is usually referring to actual line numbers, not lines,
-     * the line starting by `to` is not included in the extracted content anymore, only the text between `from` and `to`.
+     * the line starting by `to` is not included in the extracted content anymore,
+     * only the text between `from` and `to`.
      */
     to: number;
 }
@@ -167,7 +171,9 @@ export interface DiffLinesInParagraph {
  *
  * ```ts
  * const lineLength = 80;
- * const lineNumberedText = this.lineNumbering.insertLineNumbers('<p>A line</p><p>Another line</p><ul><li>A list item</li><li>Yet another item</li></ul>', lineLength);
+ * const lineNumberedText = this.lineNumbering.insertLineNumbers(
+ *   '<p>A line</p><p>Another line</p><ul><li>A list item</li><li>Yet another item</li></ul>', lineLength
+ * );
  * const extractFrom = 2;
  * const extractUntil = 3;
  * const extractedData = this.diffService.extractRangeByLineNumbers(lineNumberedText, extractFrom, extractUntil)
@@ -197,7 +203,8 @@ export interface DiffLinesInParagraph {
  * Given a diff'ed string, apply all changes to receive the new version of the text:
  *
  * ```ts
- * const diffedHtml = '<p>Test <span class="delete">Test 2</span> Another test <del>Test 3</del></p><p class="delete">Test 4</p>';
+ * const diffedHtml =
+ *   '<p>Test <span class="delete">Test 2</span> Another test <del>Test 3</del></p><p class="delete">Test 4</p>';
  * const newVersion = this.diffService.diffHtmlToFinalText(diffedHtml);
  * ```
  *
@@ -205,7 +212,11 @@ export interface DiffLinesInParagraph {
  *
  * ```ts
  * const lineLength = 80;
- * const lineNumberedText = this.lineNumbering.insertLineNumbers('<p>A line</p><p>Another line</p><ul><li>A list item</li><li>Yet another item</li></ul>', lineLength);
+ * const lineNumberedText =
+ *   this.lineNumbering.insertLineNumbers(
+ *     '<p>A line</p><p>Another line</p><ul><li>A list item</li><li>Yet another item</li></ul>',
+ *     lineLength
+ *   );
  * const merged = this.diffService.replaceLines(lineNumberedText, '<p>Replaced paragraph</p>', 1, 2);
  * ```
  */
@@ -885,10 +896,7 @@ export class DiffService {
             }
         }
 
-        return str
-            .replace(/^\s+/g, '')
-            .replace(/\s+$/g, '')
-            .replace(/ {2,}/g, ' ');
+        return str.replace(/^\s+/g, '').replace(/\s+$/g, '').replace(/ {2,}/g, ' ');
     }
 
     /**
@@ -1000,14 +1008,7 @@ export class DiffService {
                     classes = childElement.getAttribute('class').split(' ');
                 }
                 classes.push(className);
-                childElement.setAttribute(
-                    'class',
-                    classes
-                        .sort()
-                        .join(' ')
-                        .replace(/^\s+/, '')
-                        .replace(/\s+$/, '')
-                );
+                childElement.setAttribute('class', classes.sort().join(' ').replace(/^\s+/, '').replace(/\s+$/, ''));
                 foundLast = true;
             }
         }
@@ -1073,7 +1074,8 @@ export class DiffService {
     }
 
     /**
-     * This fixes a very specific, really weird bug that is tested in the test case "does not a change in a very specific case".
+     * This fixes a very specific, really weird bug that is tested in the test case "does not a change in a very
+     * specific case.
      *
      * @param {string}diffStr
      * @return {string}
@@ -1150,10 +1152,7 @@ export class DiffService {
         let html = this.serializeTag(node);
         for (let i = 0; i < node.childNodes.length; i++) {
             if (node.childNodes[i].nodeType === TEXT_NODE) {
-                html += node.childNodes[i].nodeValue
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;');
+                html += node.childNodes[i].nodeValue.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             } else if (
                 !stripLineNumbers ||
                 (!this.lineNumberingService.isOsLineNumberNode(node.childNodes[i]) &&
@@ -1191,7 +1190,8 @@ export class DiffService {
     /**
      * Given a DOM tree and a specific node within that tree, this method returns the HTML string from the beginning
      * of this tree up to this node.
-     * The returned string in itself is not renderable, as it stops in the middle of the complete HTML, with opened tags.
+     * The returned string in itself is not renderable, as it stops in the middle of the complete HTML, with
+     * opened tags.
      *
      * Implementation hint: the first element of "toChildTrace" array needs to be a child element of "node"
      * @param {Node} node
@@ -1241,7 +1241,8 @@ export class DiffService {
     /**
      * Given a DOM tree and a specific node within that tree, this method returns the HTML string beginning after this
      * node to the end of the tree.
-     * The returned string in itself is not renderable, as it starts in the middle of the complete HTML, with opened tags.
+     * The returned string in itself is not renderable, as it starts in the middle of the complete HTML
+     * with opened tags.
      *
      * Implementation hint: the first element of "fromChildTrace" array needs to be a child element of "node"
      * @param {Node} node
@@ -1296,7 +1297,8 @@ export class DiffService {
      * Returns the HTML snippet between two given line numbers.
      * extractRangeByLineNumbers
      * Hint:
-     * - The last line (toLine) is not included anymore, as the number refers to the line breaking element at the end of the line
+     * - The last line (toLine) is not included anymore, as the number refers to the line breaking element at the end
+     *   of the line
      * - if toLine === null, then everything from fromLine to the end of the fragment is returned
      *
      * In addition to the HTML snippet, additional information is provided regarding the most specific DOM element
@@ -1309,18 +1311,19 @@ export class DiffService {
      * rendering it and for merging it again correctly.
      * - os-split-*:        These classes are set for all HTML Tags that have been split into two by this process,
      *                      e.g. if the fromLine- or toLine-line-break was somewhere in the middle of this tag.
-     *                      If a tag is split, the first one receives "os-split-after", and the second one "os-split-before".
+     *                      If a tag is split, the first one receives "os-split-after", and the second
+     *                      one "os-split-before".
      * For example, for the following string <p>Line 1<br>Line 2<br>Line 3</p>:
      * - extracting line 1 to 2 results in <p class="os-split-after">Line 1</p>
      * - extracting line 2 to 3 results in <p class="os-split-after os-split-before">Line 2</p>
      * - extracting line 3 to null/4 results in <p class="os-split-before">Line 3</p>
      *
-     * @param {string} htmlIn
+     * @param {LineNumberedString} htmlIn
      * @param {number} fromLine
      * @param {number} toLine
      * @returns {ExtractedContent}
      */
-    public extractRangeByLineNumbers(htmlIn: string, fromLine: number, toLine: number): ExtractedContent {
+    public extractRangeByLineNumbers(htmlIn: LineNumberedString, fromLine: number, toLine: number): ExtractedContent {
         if (typeof htmlIn !== 'string') {
             throw new Error('Invalid call - extractRangeByLineNumbers expects a string as first argument');
         }
@@ -1601,7 +1604,8 @@ export class DiffService {
 
     /**
      * This returns the line number range in which changes (insertions, deletions) are encountered.
-     * As in extractRangeByLineNumbers(), "to" refers to the line breaking element at the end, i.e. the start of the following line.
+     * As in extractRangeByLineNumbers(), "to" refers to the line breaking element at the end, i.e. the start of the
+     * following line.
      *
      * @param {string} diffHtml
      * @returns {LineRange}
@@ -1867,24 +1871,34 @@ export class DiffService {
 
         // Performing the actual diff
         const str = this.diffString(workaroundPrepend + htmlOld, workaroundPrepend + htmlNew);
-        let diffUnnormalized = str
-            .replace(/^\s+/g, '')
-            .replace(/\s+$/g, '')
-            .replace(/ {2,}/g, ' ');
+        let diffUnnormalized = str.replace(/^\s+/g, '').replace(/\s+$/g, '').replace(/ {2,}/g, ' ');
 
         diffUnnormalized = this.fixWrongChangeDetection(diffUnnormalized);
 
         // Remove <del> tags that only delete line numbers
         // We need to do this before removing </del><del> as done in one of the next statements
         diffUnnormalized = diffUnnormalized.replace(
-            /<del>((<BR CLASS="os-line-break"><\/del><del>)?(<span[^>]+os-line-number[^>]+?>)(\s|<\/?del>)*<\/span>)<\/del>/gi,
-            (found: string, tag: string, br: string, span: string): string => {
-                return (br !== undefined ? br : '') + span + ' </span>';
+            /<del>(((<BR CLASS="os-line-break">)<\/del><del>)?(<span[^>]+os-line-number[^>]+?>)(\s|<\/?del>)*<\/span>)<\/del>/gi,
+            (found: string, tag: string, brWithDel: string, plainBr: string, span: string): string => {
+                return (plainBr !== undefined ? plainBr : '') + span + ' </span>';
             }
         );
 
         // Merging individual insert/delete statements into bigger blocks
         diffUnnormalized = diffUnnormalized.replace(/<\/ins><ins>/gi, '').replace(/<\/del><del>/gi, '');
+
+        // If we have a <del>deleted word</del>LINEBREAK<ins>new word</ins>, let's assume that the insertion
+        // was actually done in the same line as the deletion.
+        // We don't have the LINEBREAK-markers in the new string, hence we can't be a 100% sure, but
+        // this will probably the more frequent case.
+        // This only really makes a differences for change recommendations anyway, where we split the text into lines
+        // Hint: if there is no deletion before the line break, we have the same issue, but cannot solve this here.
+        diffUnnormalized = diffUnnormalized.replace(
+            /(<\/del>)(<BR CLASS="os-line-break"><span[^>]+os-line-number[^>]+?>\s*<\/span>)(<ins>[\s\S]*?<\/ins>)/gi,
+            (found: string, del: string, br: string, ins: string): string => {
+                return del + ins + br;
+            }
+        );
 
         // If only a few characters of a word have changed, don't display this as a replacement of the whole word,
         // but only of these specific characters
@@ -2116,8 +2130,10 @@ export class DiffService {
         });
 
         changes.forEach((change: ViewUnifiedChange) => {
-            html = this.lineNumberingService.insertLineNumbers(html, lineLength, null, null, 1);
-            html = this.replaceLines(html, change.getChangeNewText(), change.getLineFrom(), change.getLineTo());
+            if (!change.isTitleChange()) {
+                html = this.lineNumberingService.insertLineNumbers(html, lineLength, null, null, 1);
+                html = this.replaceLines(html, change.getChangeNewText(), change.getLineFrom(), change.getLineTo());
+            }
         });
 
         html = this.lineNumberingService.insertLineNumbers(html, lineLength, highlightLine, null, 1);
@@ -2135,7 +2151,7 @@ export class DiffService {
      * @param {number} lineLength the line length
      * @return {DiffLinesInParagraph|null}
      */
-    public getAmendmentParagraphsLinesByMode(
+    public getAmendmentParagraphsLines(
         paragraphNo: number,
         origText: string,
         newText: string,
@@ -2187,20 +2203,18 @@ export class DiffService {
      * Returns the HTML with the changes, optionally with a highlighted line.
      * The original motion needs to be provided.
      *
-     * @param {string} motionHtml
+     * @param {LineNumberedString} html
      * @param {ViewUnifiedChange} change
      * @param {number} lineLength
      * @param {number} highlight
      * @returns {string}
      */
     public getChangeDiff(
-        motionHtml: string,
+        html: LineNumberedString,
         change: ViewUnifiedChange,
         lineLength: number,
         highlight?: number
     ): string {
-        const html = this.lineNumberingService.insertLineNumbers(motionHtml, lineLength);
-
         let data, oldText;
 
         try {
@@ -2245,14 +2259,14 @@ export class DiffService {
     /**
      * Returns the remainder text of the motion after the last change
      *
-     * @param {string} motionHtml
+     * @param {LineNumberedString} motionHtml
      * @param {ViewUnifiedChange[]} changes
      * @param {number} lineLength
      * @param {number} highlight
      * @returns {string}
      */
     public getTextRemainderAfterLastChange(
-        motionHtml: string,
+        motionHtml: LineNumberedString,
         changes: ViewUnifiedChange[],
         lineLength: number,
         highlight?: number
@@ -2264,15 +2278,14 @@ export class DiffService {
             }
         }, 0);
 
-        const numberedHtml = this.lineNumberingService.insertLineNumbers(motionHtml, lineLength, highlight);
         if (changes.length === 0) {
-            return numberedHtml;
+            return motionHtml;
         }
 
         let data;
 
         try {
-            data = this.extractRangeByLineNumbers(numberedHtml, maxLine, null);
+            data = this.extractRangeByLineNumbers(motionHtml, maxLine, null);
         } catch (e) {
             // This only happens (as far as we know) when the motion text has been altered (shortened)
             // without modifying the change recommendations accordingly.
@@ -2302,21 +2315,20 @@ export class DiffService {
     /**
      * Extracts a renderable HTML string representing the given line number range of this motion text
      *
-     * @param {string} motionText
+     * @param {LineNumberedString} motionText
      * @param {LineRange} lineRange
      * @param {boolean} lineNumbers - weather to add line numbers to the returned HTML string
      * @param {number} lineLength
      * @param {number|null} highlightedLine
      */
     public extractMotionLineRange(
-        motionText: string,
+        motionText: LineNumberedString,
         lineRange: LineRange,
         lineNumbers: boolean,
         lineLength: number,
         highlightedLine: number
     ): string {
-        const origHtml = this.lineNumberingService.insertLineNumbers(motionText, lineLength, highlightedLine);
-        const extracted = this.extractRangeByLineNumbers(origHtml, lineRange.from, lineRange.to);
+        const extracted = this.extractRangeByLineNumbers(motionText, lineRange.from, lineRange.to);
         let html =
             extracted.outerContextStart +
             extracted.innerContextStart +

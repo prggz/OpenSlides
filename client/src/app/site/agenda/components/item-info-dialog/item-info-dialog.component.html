@@ -1,6 +1,15 @@
 <h1 mat-dialog-title *ngIf="item">{{ 'Edit details for' | translate }} {{ item.getTitle() }}</h1>
 <div mat-dialog-content>
     <form class="item-dialog-form" [formGroup]="agendaInfoForm" (keydown)="onKeyDown($event)">
+        <!-- Tag -->
+        <mat-form-field *ngIf="isTagAvailable()">
+            <mat-select formControlName="tags_id" multiple placeholder="{{ 'Tags' | translate }}">
+                <mat-option *ngFor="let tag of tags" [value]="tag.id">
+                    {{ tag.getTitle() | translate }}
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+
         <!-- Visibility -->
         <mat-form-field>
             <mat-select formControlName="type" placeholder="{{ 'Agenda visibility' | translate }}">
@@ -13,9 +22,9 @@
         <!-- Duration -->
         <mat-form-field>
             <input type="string" matInput placeholder="{{ 'Duration' | translate }}" formControlName="durationText" />
-            <mat-error *ngIf="agendaInfoForm.invalid"
-                >Your input does not match the following structure 'hh:mm'...</mat-error
-            >
+            <mat-error *ngIf="agendaInfoForm.invalid">
+                {{ 'Your input does not match the following structure: "hh:mm"' | translate }}
+            </mat-error>
         </mat-form-field>
 
         <!-- Item number (prefix) -->
@@ -37,6 +46,10 @@
     </form>
 </div>
 <div mat-dialog-actions>
-    <button mat-button (click)="saveItemInfo()" [disabled]="agendaInfoForm.invalid"><span translate>Save</span></button>
-    <button mat-button (click)="onCancelButton()"><span translate>Cancel</span></button>
+    <button mat-button (click)="saveItemInfo()" [disabled]="agendaInfoForm.invalid">
+        <span>{{ 'Save' | translate }}</span>
+    </button>
+    <button mat-button (click)="onCancelButton()">
+        <span>{{ 'Cancel' | translate }}</span>
+    </button>
 </div>

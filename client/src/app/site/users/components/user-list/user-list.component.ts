@@ -4,14 +4,14 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 
+import { marker as _ } from '@biesbjerg/ngx-translate-extract-marker';
 import { TranslateService } from '@ngx-translate/core';
 import { PblColumnDefinition } from '@pebula/ngrid';
 
-import { OperatorService } from 'app/core/core-services/operator.service';
+import { OperatorService, Permission } from 'app/core/core-services/operator.service';
 import { StorageService } from 'app/core/core-services/storage.service';
 import { GroupRepositoryService } from 'app/core/repositories/users/group-repository.service';
 import { UserRepositoryService } from 'app/core/repositories/users/user-repository.service';
-import { _ } from 'app/core/translate/translation-marker';
 import { ChoiceService } from 'app/core/ui-services/choice.service';
 import { ConfigService } from 'app/core/ui-services/config.service';
 import { CsvExportService } from 'app/core/ui-services/csv-export.service';
@@ -19,6 +19,7 @@ import { PromptService } from 'app/core/ui-services/prompt.service';
 import { genders } from 'app/shared/models/users/user';
 import { infoDialogSettings } from 'app/shared/utils/dialog-settings';
 import { BaseListViewComponent } from 'app/site/base/base-list-view';
+import { PollService } from 'app/site/polls/services/poll.service';
 import { UserFilterListService } from '../../services/user-filter-list.service';
 import { UserPdfExportService } from '../../services/user-pdf-export.service';
 import { UserSortListService } from '../../services/user-sort-list.service';
@@ -95,8 +96,10 @@ export class UserListComponent extends BaseListViewComponent<ViewUser> implement
      * @returns true if the presence view is available to administrators
      */
     public get presenceViewConfigured(): boolean {
-        return this._presenceViewConfigured && this.operator.hasPerms('users.can_manage');
+        return this._presenceViewConfigured && this.operator.hasPerms(Permission.usersCanManage);
     }
+
+    private isVoteWeightActive: boolean;
 
     /**
      * Helper to check for main button permissions
@@ -104,7 +107,11 @@ export class UserListComponent extends BaseListViewComponent<ViewUser> implement
      * @returns true if the user should be able to create users
      */
     public get canAddUser(): boolean {
-        return this.operator.hasPerms('users.can_manage');
+        return this.operator.hasPerms(Permission.usersCanManage);
+    }
+
+    public get showVoteWeight(): boolean {
+        return this.pollService.isElectronicVotingEnabled && this.isVoteWeightActive;
     }
 
     /**
@@ -133,6 +140,10 @@ export class UserListComponent extends BaseListViewComponent<ViewUser> implement
      * Define extra filter properties
      */
     public filterProps = ['full_name', 'groups', 'structure_level', 'number'];
+
+    private selfPresentConfStr = 'users_allow_self_set_present';
+
+    private allowSelfSetPresent: boolean;
 
     /**
      * The usual constructor for components
@@ -169,13 +180,16 @@ export class UserListComponent extends BaseListViewComponent<ViewUser> implement
         public sortService: UserSortListService,
         config: ConfigService,
         private userPdf: UserPdfExportService,
-        private dialog: MatDialog
+        private dialog: MatDialog,
+        private pollService: PollService
     ) {
         super(titleService, translate, matSnackBar, storage);
 
         // enable multiSelect for this listView
         this.canMultiSelect = true;
         config.get<boolean>('users_enable_presence_view').subscribe(state => (this._presenceViewConfigured = state));
+        config.get<boolean>('users_activate_vote_weight').subscribe(active => (this.isVoteWeightActive = active));
+        config.get<boolean>(this.selfPresentConfStr).subscribe(allowed => (this.allowSelfSetPresent = allowed));
     }
 
     /**
@@ -201,6 +215,16 @@ export class UserListComponent extends BaseListViewComponent<ViewUser> implement
         this.router.navigate(['./new'], { relativeTo: this.route });
     }
 
+    public isPresentToggleDisabled(user: ViewUser): boolean {
+        if (this.isMultiSelect) {
+            return true;
+        } else if (this.allowSelfSetPresent && this.operator.viewUser === user) {
+            return false;
+        } else {
+            return !this.operator.hasPerms(Permission.usersCanManage);
+        }
+    }
+
     /**
      * This function opens the dialog,
      * where the user can quick change the groups,
@@ -209,7 +233,7 @@ export class UserListComponent extends BaseListViewComponent<ViewUser> implement
      * @param user is an instance of ViewUser. This is the given user, who will be modified.
      */
     public openEditInfo(user: ViewUser, ev: MouseEvent): void {
-        if (this.isMultiSelect || !this.operator.hasPerms('users.can_manage')) {
+        if (this.isMultiSelect || !this.operator.hasPerms(Permission.usersCanManage)) {
             return;
         }
         ev.stopPropagation();
@@ -412,6 +436,11 @@ export class UserListComponent extends BaseListViewComponent<ViewUser> implement
      */
     public setPresent(viewUser: ViewUser): void {
         viewUser.user.is_present = !viewUser.user.is_present;
-        this.repo.update(viewUser.user, viewUser).catch(this.raiseError);
+
+        if (this.operator.hasPerms(Permission.usersCanManage)) {
+            this.repo.update(viewUser.user, viewUser).catch(this.raiseError);
+        } else if (this.allowSelfSetPresent && this.operator.viewUser === viewUser) {
+            this.operator.setPresence(viewUser.user.is_present).catch(this.raiseError);
+        }
     }
 }

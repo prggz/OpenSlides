@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -6,13 +6,13 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { PblColumnDefinition } from '@pebula/ngrid';
 
-import { OperatorService } from 'app/core/core-services/operator.service';
+import { OperatorService, Permission } from 'app/core/core-services/operator.service';
 import { StorageService } from 'app/core/core-services/storage.service';
 import { AssignmentRepositoryService } from 'app/core/repositories/assignments/assignment-repository.service';
 import { PromptService } from 'app/core/ui-services/prompt.service';
 import { ViewportService } from 'app/core/ui-services/viewport.service';
 import { BaseListViewComponent } from 'app/site/base/base-list-view';
-import { AssignmentFilterListService } from '../../services/assignment-filter.service';
+import { AssignmentFilterListService } from '../../services/assignment-filter-list.service';
 import { AssignmentPdfExportService } from '../../services/assignment-pdf-export.service';
 import { AssignmentSortListService } from '../../services/assignment-sort-list.service';
 import { AssignmentPhases, ViewAssignment } from '../../models/view-assignment';
@@ -23,6 +23,7 @@ import { AssignmentPhases, ViewAssignment } from '../../models/view-assignment';
 @Component({
     selector: 'os-assignment-list',
     templateUrl: './assignment-list.component.html',
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrls: ['./assignment-list.component.scss']
 })
 export class AssignmentListComponent extends BaseListViewComponent<ViewAssignment> implements OnInit {
@@ -55,6 +56,10 @@ export class AssignmentListComponent extends BaseListViewComponent<ViewAssignmen
      */
     public filterProps = ['title', 'candidates', 'assignment_related_users', 'tags', 'candidateAmount'];
 
+    public get canManageAssignments(): boolean {
+        return this.operator.hasPerms(Permission.assignmentsCanManage);
+    }
+
     /**
      * Constructor.
      *
@@ -82,7 +87,7 @@ export class AssignmentListComponent extends BaseListViewComponent<ViewAssignmen
         private pdfService: AssignmentPdfExportService,
         protected route: ActivatedRoute,
         private router: Router,
-        public operator: OperatorService,
+        private operator: OperatorService,
         public vp: ViewportService
     ) {
         super(titleService, translate, matSnackBar, storage);
@@ -111,7 +116,7 @@ export class AssignmentListComponent extends BaseListViewComponent<ViewAssignmen
     public getColumnsHiddenInMobile(): string[] {
         const hiddenInMobile = ['phase', 'candidates'];
 
-        if (!this.operator.hasPerms('agenda.can_see_list_of_speakers', 'core.can_manage_projector')) {
+        if (!this.operator.hasPerms(Permission.agendaCanSeeListOfSpeakers, Permission.coreCanManageProjector)) {
             hiddenInMobile.push('menu');
         }
 

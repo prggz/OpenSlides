@@ -25,6 +25,11 @@ import { HttpService } from './http.service';
 import { ProjectorDataService } from './projector-data.service';
 import { ViewModelStoreService } from './view-model-store.service';
 
+export interface ProjectorTitle {
+    title: string;
+    subtitle?: string;
+}
+
 /**
  * This service cares about Projectables being projected and manage all projection-related
  * actions.
@@ -250,7 +255,7 @@ export class ProjectorService {
             projectorData.forEach(entry => {
                 if (entry.data.error && entry.element.stable) {
                     // Remove this element
-                    const idElementToRemove = this.slideManager.getIdentifialbeProjectorElement(entry.element);
+                    const idElementToRemove = this.slideManager.getIdentifiableProjectorElement(entry.element);
                     elements = elements.filter(element => {
                         return !elementIdentifies(idElementToRemove, element);
                     });
@@ -325,9 +330,9 @@ export class ProjectorService {
 
     /**
      */
-    public getSlideTitle(element: ProjectorElement): string {
+    public getSlideTitle(element: ProjectorElement): ProjectorTitle {
         if (this.slideManager.canSlideBeMappedToModel(element.name)) {
-            const idElement = this.slideManager.getIdentifialbeProjectorElement(element);
+            const idElement = this.slideManager.getIdentifiableProjectorElement(element);
             const viewModel = this.getViewModelFromProjectorElement(idElement);
             if (viewModel) {
                 return viewModel.getProjectorTitle();
@@ -338,7 +343,7 @@ export class ProjectorService {
             return configuration.getSlideTitle(element, this.translate, this.viewModelStore);
         }
 
-        return this.translate.instant(this.slideManager.getSlideVerboseName(element.name));
+        return { title: this.translate.instant(this.slideManager.getSlideVerboseName(element.name)) };
     }
 
     /**
