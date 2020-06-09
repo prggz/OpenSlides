@@ -9,6 +9,8 @@
     <h3>{{ 'Candidates' | translate }}</h3>
     <ng-container *ngIf="data.data.assignment_related_users && data.data.assignment_related_users.length">
         <ol *ngIf="data.data.number_poll_candidates">
+            <li>Nein</li>
+            <li>Enthaltung</li>
             <li *ngFor="let candidate of data.data.assignment_related_users">
                 {{ candidate.user }}
             </li>
